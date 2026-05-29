@@ -13,15 +13,23 @@ interface TransactionFeedProps {
 type FilterType = 'ALL' | 'INCOME' | 'EXPENSE';
 type SortType = 'DATE' | 'HIGH' | 'LOW' | 'FREQUENT';
 
+const iconCache = new Map<string, React.ReactNode>();
+
 const getCategoryIcon = (category: string) => {
+  if (iconCache.has(category)) return iconCache.get(category);
+  
   const c = category.toLowerCase();
-  if (c.includes('food') || c.includes('coffee')) return <Coffee size={14} />;
-  if (c.includes('shop') || c.includes('cloth')) return <ShoppingCart size={14} />;
-  if (c.includes('rent') || c.includes('home')) return <Home size={14} />;
-  if (c.includes('trans') || c.includes('car')) return <Car size={14} />;
-  if (c.includes('work') || c.includes('salary')) return <Briefcase size={14} />;
-  if (c.includes('util') || c.includes('elec')) return <Zap size={14} />;
-  return <Tag size={14} />;
+  let icon = <Tag size={14} />;
+  
+  if (c.includes('food') || c.includes('coffee')) icon = <Coffee size={14} />;
+  else if (c.includes('shop') || c.includes('cloth')) icon = <ShoppingCart size={14} />;
+  else if (c.includes('rent') || c.includes('home')) icon = <Home size={14} />;
+  else if (c.includes('trans') || c.includes('car')) icon = <Car size={14} />;
+  else if (c.includes('work') || c.includes('salary')) icon = <Briefcase size={14} />;
+  else if (c.includes('util') || c.includes('elec')) icon = <Zap size={14} />;
+  
+  iconCache.set(category, icon);
+  return icon;
 };
 
 const TransactionRow = memo(({ t, onSelect }: { t: Transaction, onSelect: (t: Transaction) => void }) => {

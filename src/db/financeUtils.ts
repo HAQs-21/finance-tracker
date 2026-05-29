@@ -41,11 +41,13 @@ export const calculateCategoryDistribution = (transactions: Transaction[], yearM
     .sort((a, b) => b.amount - a.amount);
 };
 
+const pkrFormatter = new Intl.NumberFormat('en-PK', {
+  style: 'currency',
+  currency: 'PKR',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0
+});
+
 export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat('en-PK', {
-    style: 'currency',
-    currency: 'PKR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
-  }).format(amount);
+  return pkrFormatter.format(amount);
 };

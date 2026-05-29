@@ -33,6 +33,13 @@ export const Dashboard: React.FC = () => {
     return Array.from(months).sort((a, b) => b.localeCompare(a));
   }, [transactions]);
 
+  const [isFeedReady, setIsFeedReady] = useState(false);
+  
+  React.useEffect(() => {
+    const timer = setTimeout(() => setIsFeedReady(true), 150);
+    return () => clearTimeout(timer);
+  }, []);
+
   const togglePanel = (panel: 'importer' | 'sync') => {
     setActivePanel(activePanel === panel ? null : panel);
   };
@@ -126,12 +133,18 @@ export const Dashboard: React.FC = () => {
         </div>
       </section>
 
-      <section>
-        <TransactionFeed 
-          transactions={transactions} 
-          currentMonth={currentMonth} 
-          onSelect={setSelectedTransaction} 
-        />
+      <section className="min-h-[300px]">
+        {isFeedReady ? (
+          <TransactionFeed 
+            transactions={transactions} 
+            currentMonth={currentMonth} 
+            onSelect={setSelectedTransaction} 
+          />
+        ) : (
+          <div className="flex justify-center items-center h-32">
+            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        )}
       </section>
 
       <TransactionDetailsModal 
