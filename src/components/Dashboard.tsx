@@ -1,18 +1,21 @@
 import React, { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
+import type { Transaction } from '../types';
 import { SummaryCard } from './ui/SummaryCard';
 import { TransactionFeed } from './TransactionFeed';
 import { BulkImporter } from './BulkImporter';
 import { SyncSettings } from './SyncSettings';
 import { BudgetVariance } from './BudgetVariance';
 import { MonthSelector } from './MonthSelector';
+import { TransactionDetailsModal } from './TransactionDetailsModal';
 import { TrendingUp, TrendingDown, Wallet, Database, Cloud } from 'lucide-react';
 import { calculateOverallStats, calculateMonthlyStats, calculateCategoryDistribution, formatCurrency } from '../db/financeUtils';
 
 export const Dashboard: React.FC = () => {
   const [currentMonth, setCurrentMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [activePanel, setActivePanel] = useState<'importer' | 'sync' | null>(null);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
 
   const transactions = useLiveQuery(
     () => db.transactions.orderBy('date').reverse().toArray(),
@@ -124,8 +127,17 @@ export const Dashboard: React.FC = () => {
       </section>
 
       <section>
-        <TransactionFeed transactions={transactions} currentMonth={currentMonth} />
+        <TransactionFeed 
+          transactions={transactions} 
+          currentMonth={currentMonth} 
+          onSelect={setSelectedTransaction} 
+        />
       </section>
+
+      <TransactionDetailsModal 
+        transaction={selectedTransaction} 
+        onClose={() => setSelectedTransaction(null)} 
+      />
     </div>
   );
 };

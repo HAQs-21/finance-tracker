@@ -7,6 +7,7 @@ import { Virtuoso } from 'react-virtuoso';
 interface TransactionFeedProps {
   transactions: Transaction[];
   currentMonth: string;
+  onSelect: (t: Transaction) => void;
 }
 
 type FilterType = 'ALL' | 'INCOME' | 'EXPENSE';
@@ -22,10 +23,11 @@ const getCategoryIcon = (category: string) => {
   return <Tag size={14} />;
 };
 
-const TransactionRow = memo(({ t }: { t: Transaction }) => {
+const TransactionRow = memo(({ t, onSelect }: { t: Transaction, onSelect: (t: Transaction) => void }) => {
   return (
-    <div 
-      className="flex items-center justify-between p-3 bg-[#1E1E1E] border border-white/5 active:bg-[#2A2A2A] transition-colors"
+    <button 
+      onClick={() => onSelect(t)}
+      className="w-full flex items-center justify-between p-3 bg-[#1E1E1E] border border-white/5 active:bg-[#2A2A2A] transition-colors text-left"
     >
       <div className="flex items-center gap-3 overflow-hidden">
         <div className={`p-2 rounded-lg shrink-0 ${t.type === 'INCOME' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
@@ -39,7 +41,7 @@ const TransactionRow = memo(({ t }: { t: Transaction }) => {
       <div className={`text-sm font-bold shrink-0 ml-4 ${t.type === 'INCOME' ? 'text-emerald-400' : 'text-zinc-100'}`}>
         {t.type === 'INCOME' ? '+' : '-'}{formatCurrency(t.amount)}
       </div>
-    </div>
+    </button>
   );
 });
 
@@ -63,7 +65,7 @@ const DateHeader = memo(({ date, isCollapsed, count, onToggle }: { date: string,
   );
 });
 
-export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, currentMonth }) => {
+export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, currentMonth, onSelect }) => {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<FilterType>('ALL');
   const [collapsedDates, setCollapsedDates] = useState<Record<string, boolean>>({});
@@ -148,7 +150,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
               />
             );
           }
-          return <TransactionRow t={item.transaction!} />;
+          return <TransactionRow t={item.transaction!} onSelect={onSelect} />;
         }}
         components={{
           List: React.forwardRef((props: any, ref) => (
