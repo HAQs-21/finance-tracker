@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect, memo, startTransition } from 'react';
 import type { Transaction } from '../types';
 import { Tag, ShoppingCart, Home, Car, Coffee, Briefcase, Zap, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '../db/financeUtils';
@@ -21,16 +21,57 @@ const getCategoryIcon = (category: string) => {
   return <Tag size={14} />;
 };
 
+const TransactionRow = memo(({ t }: { t: Transaction }) => {
+  return (
+    <div 
+      className="flex items-center justify-between p-3 bg-[#1E1E1E] border border-white/5 active:bg-[#2A2A2A] transition-colors first-of-type:rounded-t-xl last-of-type:rounded-b-xl [content-visibility:auto] [contain-intrinsic-size:70px]"
+    >
+      <div className="flex items-center gap-3 overflow-hidden">
+        <div className={`p-2 rounded-lg shrink-0 ${t.type === 'INCOME' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+          {getCategoryIcon(t.category)}
+        </div>
+        <div className="truncate">
+          <div className="text-sm font-semibold text-zinc-200 truncate">{t.description || t.category}</div>
+          <div className="text-[10px] font-medium text-zinc-500 truncate">{t.category}</div>
+        </div>
+      </div>
+      <div className={`text-sm font-bold shrink-0 ml-4 ${t.type === 'INCOME' ? 'text-emerald-400' : 'text-zinc-100'}`}>
+        {t.type === 'INCOME' ? '+' : '-'}{formatCurrency(t.amount)}
+      </div>
+    </div>
+  );
+});
+
+const DateHeader = memo(({ date, isCollapsed, count, onToggle }: { date: string, isCollapsed: boolean, count: number, onToggle: (d: string) => void }) => {
+  const dateObj = new Date(`${date}T00:00:00`);
+  return (
+    <button
+      onClick={() => onToggle(date)}
+      className="w-full flex items-center justify-between py-3 px-1 mt-4 bg-transparent outline-none"
+    >
+      <div className="flex items-center gap-2 text-zinc-400">
+        {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+        <span className="text-[10px] font-bold uppercase tracking-widest">
+          {dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+        </span>
+      </div>
+      <div className="text-[10px] font-bold text-zinc-600">
+        {count} records
+      </div>
+    </button>
+  );
+});
+
 export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, currentMonth }) => {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<FilterType>('ALL');
   const [collapsedDates, setCollapsedDates] = useState<Record<string, boolean>>({});
-  const [limit, setLimit] = useState(30);
+  const [limit, setLimit] = useState(50);
 
   const observerTarget = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    setLimit(30);
+    setLimit(50);
   }, [currentMonth, search, typeFilter]);
 
   const toggleDate = useCallback((date: string) => {
@@ -76,8 +117,14 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      entries => { if (entries[0].isIntersecting) setLimit(l => l + 20); },
-      { threshold: 0.1 }
+      entries => { 
+        if (entries[0].isIntersecting) {
+          startTransition(() => {
+            setLimit(l => l + 50);
+          });
+        }
+      },
+      { threshold: 0.1, rootMargin: '200px' }
     );
     if (observerTarget.current) observer.observe(observerTarget.current);
     return () => observer.disconnect();
@@ -116,47 +163,18 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
       <div className="space-y-0.5">
         {paginatedRender.map((item) => {
           if (item.isHeader) {
-            const dateObj = new Date(`${item.date}T00:00:00`);
-            const isCollapsed = collapsedDates[item.date!];
             return (
-              <button
+              <DateHeader
                 key={`header-${item.date}`}
-                onClick={() => toggleDate(item.date!)}
-                className="w-full flex items-center justify-between py-3 px-1 mt-4 bg-transparent outline-none"
-              >
-                <div className="flex items-center gap-2 text-zinc-400">
-                  {isCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
-                  <span className="text-[10px] font-bold uppercase tracking-widest">
-                    {dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                  </span>
-                </div>
-                <div className="text-[10px] font-bold text-zinc-600">
-                  {grouped[item.date!].length} records
-                </div>
-              </button>
+                date={item.date!}
+                isCollapsed={!!collapsedDates[item.date!]}
+                count={grouped[item.date!].length}
+                onToggle={toggleDate}
+              />
             );
           }
 
-          const t = item.transaction!;
-          return (
-            <div 
-              key={t.id} 
-              className="flex items-center justify-between p-3 bg-[#1E1E1E] border border-white/5 active:bg-[#2A2A2A] transition-colors first-of-type:rounded-t-xl last-of-type:rounded-b-xl"
-            >
-              <div className="flex items-center gap-3 overflow-hidden">
-                <div className={`p-2 rounded-lg shrink-0 ${t.type === 'INCOME' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
-                  {getCategoryIcon(t.category)}
-                </div>
-                <div className="truncate">
-                  <div className="text-sm font-semibold text-zinc-200 truncate">{t.description || t.category}</div>
-                  <div className="text-[10px] font-medium text-zinc-500 truncate">{t.category}</div>
-                </div>
-              </div>
-              <div className={`text-sm font-bold shrink-0 ml-4 ${t.type === 'INCOME' ? 'text-emerald-400' : 'text-zinc-100'}`}>
-                {t.type === 'INCOME' ? '+' : '-'}{formatCurrency(t.amount)}
-              </div>
-            </div>
-          );
+          return <TransactionRow key={item.transaction!.id} t={item.transaction!} />;
         })}
       </div>
       
