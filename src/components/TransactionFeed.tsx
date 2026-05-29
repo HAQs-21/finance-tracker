@@ -39,7 +39,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
 
   const filtered = useMemo(() => {
     return transactions.filter(t => {
-      if (!t.date.startsWith(currentMonth)) return false;
+      if (currentMonth !== 'ALL' && !t.date.startsWith(currentMonth)) return false;
       if (typeFilter !== 'ALL' && t.type !== typeFilter) return false;
       if (search && !t.description.toLowerCase().includes(search.toLowerCase()) && !t.category.toLowerCase().includes(search.toLowerCase())) return false;
       return true;

@@ -2,25 +2,13 @@ import React, { useRef, useEffect } from 'react';
 
 interface MonthSelectorProps {
   currentMonth: string;
+  availableMonths: string[];
   onChange: (month: string) => void;
 }
 
-export const MonthSelector: React.FC<MonthSelectorProps> = ({ currentMonth, onChange }) => {
+export const MonthSelector: React.FC<MonthSelectorProps> = ({ currentMonth, availableMonths, onChange }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   
-  const generateMonths = () => {
-    const months = [];
-    const date = new Date();
-    date.setMonth(date.getMonth() + 3);
-    for (let i = 0; i < 24; i++) {
-      months.push(date.toISOString().slice(0, 7));
-      date.setMonth(date.getMonth() - 1);
-    }
-    return months.reverse();
-  };
-
-  const months = generateMonths();
-
   useEffect(() => {
     if (scrollRef.current) {
       const activeEl = scrollRef.current.querySelector('[data-active="true"]');
@@ -28,12 +16,15 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({ currentMonth, onCh
         activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
       }
     }
-  }, [currentMonth]);
+  }, [currentMonth, availableMonths]);
 
   const formatMonth = (iso: string) => {
+    if (iso === 'ALL') return 'All Time';
     const d = new Date(`${iso}-01T00:00:00`);
     return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
   };
+
+  const options = ['ALL', ...availableMonths];
 
   return (
     <div className="relative border-y border-white/10 bg-[#121212] py-2 w-full">
@@ -41,7 +32,7 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({ currentMonth, onCh
         ref={scrollRef}
         className="flex overflow-x-auto no-scrollbar gap-2 px-6 snap-x snap-mandatory"
       >
-        {months.map(m => {
+        {options.map(m => {
           const isActive = m === currentMonth;
           return (
             <button

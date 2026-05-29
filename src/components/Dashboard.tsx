@@ -23,6 +23,13 @@ export const Dashboard: React.FC = () => {
   const monthlyStats = useMemo(() => calculateMonthlyStats(transactions, currentMonth), [transactions, currentMonth]);
   const categoryStats = useMemo(() => calculateCategoryDistribution(transactions, currentMonth), [transactions, currentMonth]);
 
+  const availableMonths = useMemo(() => {
+    const currentRealMonth = new Date().toISOString().slice(0, 7);
+    const months = new Set(transactions.map(t => t.date.slice(0, 7)));
+    months.add(currentRealMonth);
+    return Array.from(months).sort((a, b) => b.localeCompare(a));
+  }, [transactions]);
+
   const togglePanel = (panel: 'importer' | 'sync') => {
     setActivePanel(activePanel === panel ? null : panel);
   };
@@ -66,14 +73,14 @@ export const Dashboard: React.FC = () => {
         </section>
       )}
 
-      <MonthSelector currentMonth={currentMonth} onChange={setCurrentMonth} />
+      <MonthSelector currentMonth={currentMonth} availableMonths={availableMonths} onChange={setCurrentMonth} />
 
       <section className="grid grid-cols-1 gap-4">
         <div className="bg-[#1E1E1E] p-6 rounded-xl border border-white/10 relative overflow-hidden">
           <div className="absolute -top-4 -right-4 p-8 opacity-5">
             <Wallet size={120} />
           </div>
-          <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">Monthly Balance</p>
+          <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-1">{currentMonth === 'ALL' ? 'All Time Balance' : 'Monthly Balance'}</p>
           <div className="text-4xl font-extrabold text-white tracking-tighter">
             {formatCurrency(monthlyStats.balance)}
           </div>

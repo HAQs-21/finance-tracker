@@ -17,12 +17,12 @@ export const calculateOverallStats = (transactions: Transaction[]): SummaryStats
 };
 
 export const calculateMonthlyStats = (transactions: Transaction[], yearMonth: string): SummaryStats => {
-  const monthlyTransactions = transactions.filter(t => t.date.startsWith(yearMonth));
+  const monthlyTransactions = yearMonth === 'ALL' ? transactions : transactions.filter(t => t.date.startsWith(yearMonth));
   return calculateOverallStats(monthlyTransactions);
 };
 
 export const calculateCategoryDistribution = (transactions: Transaction[], yearMonth: string): CategoryStat[] => {
-  const monthlyExpenses = transactions.filter(t => t.date.startsWith(yearMonth) && t.type === 'EXPENSE');
+  const monthlyExpenses = transactions.filter(t => (yearMonth === 'ALL' || t.date.startsWith(yearMonth)) && t.type === 'EXPENSE');
   const totalMonthlyExpense = monthlyExpenses.reduce((sum, t) => sum + t.amount, 0);
 
   if (totalMonthlyExpense === 0) return [];
