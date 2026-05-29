@@ -14,6 +14,12 @@ export interface GithubFileResponse {
 
 const STORAGE_KEY = 'finance_tracker_gh_config';
 
+let runtimeConfig: GithubConfig | null = null;
+
+export const setRuntimeConfig = (config: GithubConfig) => {
+  runtimeConfig = config;
+};
+
 export const getStoredConfig = (): GithubConfig | null => {
   const data = localStorage.getItem(STORAGE_KEY);
   return data ? JSON.parse(data) : null;
@@ -21,13 +27,22 @@ export const getStoredConfig = (): GithubConfig | null => {
 
 export const saveConfig = (config: GithubConfig) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+  runtimeConfig = config;
+};
+
+export const clearConfig = () => {
+  localStorage.removeItem(STORAGE_KEY);
+};
+
+export const getActiveConfig = (): GithubConfig | null => {
+  return runtimeConfig || getStoredConfig();
 };
 
 const toBase64 = (str: string) => btoa(unescape(encodeURIComponent(str)));
 const fromBase64 = (str: string) => decodeURIComponent(escape(atob(str)));
 
 export async function fetchFromGitHub(): Promise<GithubFileResponse | null> {
-  const config = getStoredConfig();
+  const config = getActiveConfig();
   if (!config) return null;
 
   const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}`;
@@ -55,7 +70,7 @@ export async function fetchFromGitHub(): Promise<GithubFileResponse | null> {
 }
 
 export async function pushToGitHub(transactions: Transaction[], sha: string): Promise<string> {
-  const config = getStoredConfig();
+  const config = getActiveConfig();
   if (!config) throw new Error('GitHub configuration missing');
 
   const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}`;

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { getStoredConfig, saveConfig, type GithubConfig } from '../services/githubSync';
+import { getStoredConfig, saveConfig, clearConfig, setRuntimeConfig, type GithubConfig } from '../services/githubSync';
 import { syncDatabase, syncPush } from '../db/syncController';
-import { Save, RefreshCw, AlertTriangle, CheckCircle2, Loader2, Cloud, X } from 'lucide-react';
+import { db } from '../db/db';
+import { Save, RefreshCw, AlertTriangle, CheckCircle2, Loader2, Cloud, X, Trash2 } from 'lucide-react';
 
 export const SyncSettings: React.FC = () => {
   const [config, setConfig] = useState<GithubConfig>({
@@ -11,24 +12,39 @@ export const SyncSettings: React.FC = () => {
     path: 'data.json'
   });
 
+  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     const stored = getStoredConfig();
-    if (stored) setConfig(stored);
+    if (stored) {
+      setConfig(stored);
+      setRemember(true);
+    } else {
+      setRemember(false);
+    }
   }, []);
 
+  const applyConfig = () => {
+    setRuntimeConfig(config);
+    if (remember) {
+      saveConfig(config);
+    } else {
+      clearConfig();
+    }
+  };
+
   const handleSave = () => {
-    saveConfig(config);
-    setStatus({ type: 'success', message: 'Settings saved locally.' });
+    applyConfig();
+    setStatus({ type: 'success', message: remember ? 'Settings saved to device.' : 'Settings applied for this session only.' });
   };
 
   const handleFullSync = async () => {
     setLoading(true);
     setStatus(null);
     try {
-      saveConfig(config);
+      applyConfig();
       await syncDatabase();
       setStatus({ type: 'success', message: 'Full sync complete.' });
     } catch (error) {
@@ -42,10 +58,27 @@ export const SyncSettings: React.FC = () => {
     setLoading(true);
     setStatus(null);
     try {
+      applyConfig();
       await syncPush();
       setStatus({ type: 'success', message: 'Pushed to GitHub.' });
     } catch (error) {
       setStatus({ type: 'error', message: error instanceof Error ? error.message : 'Push failed.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWipe = async () => {
+    if (!window.confirm("WARNING: This will backup your data to GitHub and completely WIPE this device's records. Continue?")) return;
+    setLoading(true);
+    setStatus(null);
+    try {
+      applyConfig();
+      await syncPush();
+      await db.transactions.clear();
+      setStatus({ type: 'success', message: 'Backup successful. Device data wiped.' });
+    } catch (error) {
+      setStatus({ type: 'error', message: error instanceof Error ? error.message : 'Backup failed. Device wipe aborted to prevent data loss.' });
     } finally {
       setLoading(false);
     }
@@ -105,6 +138,17 @@ export const SyncSettings: React.FC = () => {
             className="w-full bg-[#121212] border border-white/10 rounded-lg p-3 text-white focus:outline-none focus:border-primary transition-colors font-mono text-xs"
           />
         </div>
+
+        <div className="flex items-center gap-2 px-1 pt-1">
+          <input
+            type="checkbox"
+            id="remember"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+            className="w-3.5 h-3.5 rounded bg-[#121212] border-white/10 text-primary focus:ring-primary focus:ring-offset-0"
+          />
+          <label htmlFor="remember" className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">Remember credentials on this device</label>
+        </div>
       </div>
 
       {status && (
@@ -139,6 +183,13 @@ export const SyncSettings: React.FC = () => {
           className="w-full border border-white/10 text-zinc-300 font-bold py-3 rounded-lg hover:bg-white/5 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 text-xs"
         >
           {loading ? <Loader2 className="animate-spin" size={16} /> : <>Push Local Changes</>}
+        </button>
+        <button
+          onClick={handleWipe}
+          disabled={loading}
+          className="w-full mt-2 border border-rose-500/20 bg-rose-500/5 text-rose-400 font-bold py-3 rounded-lg hover:bg-rose-500/10 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 text-xs"
+        >
+          {loading ? <Loader2 className="animate-spin" size={16} /> : <><Trash2 size={14} /> Backup & Wipe Device</>}
         </button>
       </div>
     </div>
