@@ -33,15 +33,14 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
   const allTransactions = useLiveQuery(() => db.transactions.toArray()) || [];
 
   const insights = useMemo(() => {
-    if (!transaction || !transaction.description || allTransactions.length === 0) return null;
+    if (!transaction || allTransactions.length === 0) return null;
 
-    const queryDesc = transaction.description.trim().toLowerCase();
-    // Use category as fallback if description is empty, but only if they actually typed a description
+    const queryDesc = (transaction.description || transaction.category).trim().toLowerCase();
     if (!queryDesc) return null;
 
     const matches = allTransactions.filter(t => 
       t.type === transaction.type && 
-      t.description.trim().toLowerCase() === queryDesc
+      (t.description || t.category).trim().toLowerCase() === queryDesc
     );
 
     const now = new Date();

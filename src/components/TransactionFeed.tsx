@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, memo } from 'react';
 import type { Transaction } from '../types';
-import { Tag, ShoppingCart, Home, Car, Coffee, Briefcase, Zap, Search, ChevronDown, ChevronRight } from 'lucide-react';
+import { Tag, ShoppingCart, Home, Car, Coffee, Briefcase, Zap, Search, ChevronDown, ChevronRight, ArrowUpDown } from 'lucide-react';
 import { formatCurrency } from '../db/financeUtils';
 import { Virtuoso } from 'react-virtuoso';
 
@@ -11,6 +11,7 @@ interface TransactionFeedProps {
 }
 
 type FilterType = 'ALL' | 'INCOME' | 'EXPENSE';
+type SortType = 'DATE' | 'HIGH' | 'LOW' | 'FREQUENT';
 
 const getCategoryIcon = (category: string) => {
   const c = category.toLowerCase();
@@ -38,8 +39,11 @@ const TransactionRow = memo(({ t, onSelect }: { t: Transaction, onSelect: (t: Tr
           <div className="text-[10px] font-medium text-zinc-500 truncate">{t.category}</div>
         </div>
       </div>
-      <div className={`text-sm font-bold shrink-0 ml-4 ${t.type === 'INCOME' ? 'text-emerald-400' : 'text-zinc-100'}`}>
-        {t.type === 'INCOME' ? '+' : '-'}{formatCurrency(t.amount)}
+      <div className={`flex flex-col items-end shrink-0 ml-4`}>
+        <div className={`text-sm font-bold ${t.type === 'INCOME' ? 'text-emerald-400' : 'text-zinc-100'}`}>
+          {t.type === 'INCOME' ? '+' : '-'}{formatCurrency(t.amount)}
+        </div>
+        <div className="text-[9px] font-mono text-zinc-500">{t.date}</div>
       </div>
     </button>
   );
@@ -68,6 +72,7 @@ const DateHeader = memo(({ date, isCollapsed, count, onToggle }: { date: string,
 export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, currentMonth, onSelect }) => {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<FilterType>('ALL');
+  const [sortType, setSortType] = useState<SortType>('DATE');
   const [collapsedDates, setCollapsedDates] = useState<Record<string, boolean>>({});
 
   const toggleDate = useCallback((date: string) => {
@@ -83,20 +88,47 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
     });
   }, [transactions, currentMonth, typeFilter, search]);
 
-  const grouped = useMemo(() => {
-    return filtered.reduce((acc, t) => {
+  const sortedList = useMemo(() => {
+    if (sortType === 'DATE') return filtered;
+    
+    const list = [...filtered];
+    if (sortType === 'HIGH') return list.sort((a, b) => b.amount - a.amount);
+    if (sortType === 'LOW') return list.sort((a, b) => a.amount - b.amount);
+    
+    if (sortType === 'FREQUENT') {
+      const freqs = transactions.reduce((acc, t) => {
+        const key = (t.description || t.category).trim().toLowerCase();
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      
+      return list.sort((a, b) => {
+        const keyA = (a.description || a.category).trim().toLowerCase();
+        const keyB = (b.description || b.category).trim().toLowerCase();
+        return (freqs[keyB] || 0) - (freqs[keyA] || 0);
+      });
+    }
+    return list;
+  }, [filtered, sortType, transactions]);
+
+  const flatList = useMemo(() => {
+    type RenderItem = { isHeader: boolean; date?: string; transaction?: Transaction; count?: number };
+    const renderData: RenderItem[] = [];
+    
+    if (sortType !== 'DATE') {
+      return sortedList.map(t => ({ isHeader: false, transaction: t } as RenderItem));
+    }
+
+    const grouped = sortedList.reduce((acc, t) => {
       if (!acc[t.date]) acc[t.date] = [];
       acc[t.date].push(t);
       return acc;
     }, {} as Record<string, Transaction[]>);
-  }, [filtered]);
 
-  const sortedDates = useMemo(() => Object.keys(grouped).sort((a, b) => b.localeCompare(a)), [grouped]);
-
-  const flatList = useMemo(() => {
-    const renderData: { isHeader: boolean; date?: string; transaction?: Transaction }[] = [];
+    const sortedDates = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+    
     for (const date of sortedDates) {
-      renderData.push({ isHeader: true, date });
+      renderData.push({ isHeader: true, date, count: grouped[date].length });
       if (!collapsedDates[date]) {
         for (const t of grouped[date]) {
           renderData.push({ isHeader: false, transaction: t });
@@ -104,7 +136,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
       }
     }
     return renderData;
-  }, [sortedDates, grouped, collapsedDates]);
+  }, [sortedList, sortType, collapsedDates]);
 
   if (transactions.length === 0) return null;
 
@@ -124,15 +156,30 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
             </button>
           ))}
         </div>
-        <div className="relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
-          <input
-            type="text"
-            placeholder="Search transactions..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-[#1E1E1E] border border-white/10 rounded-xl py-2 pl-9 pr-4 text-xs text-white focus:outline-none focus:border-primary transition-colors"
-          />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+            <input
+              type="text"
+              placeholder="Search..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full bg-[#1E1E1E] border border-white/10 rounded-xl py-2 pl-9 pr-4 text-xs text-white focus:outline-none focus:border-primary transition-colors"
+            />
+          </div>
+          <div className="relative shrink-0">
+            <select
+              value={sortType}
+              onChange={e => setSortType(e.target.value as SortType)}
+              className="appearance-none bg-[#1E1E1E] border border-white/10 rounded-xl py-2 pl-8 pr-4 text-[10px] font-bold uppercase text-white focus:outline-none focus:border-primary transition-colors h-full"
+            >
+              <option value="DATE">Date</option>
+              <option value="HIGH">High</option>
+              <option value="LOW">Low</option>
+              <option value="FREQUENT">Freq</option>
+            </select>
+            <ArrowUpDown size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+          </div>
         </div>
       </div>
 
@@ -145,7 +192,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
               <DateHeader
                 date={item.date!}
                 isCollapsed={!!collapsedDates[item.date!]}
-                count={grouped[item.date!].length}
+                count={item.count!}
                 onToggle={toggleDate}
               />
             );
