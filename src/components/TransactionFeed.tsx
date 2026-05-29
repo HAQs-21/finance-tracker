@@ -1,7 +1,8 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect, memo, startTransition } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import type { Transaction } from '../types';
 import { Tag, ShoppingCart, Home, Car, Coffee, Briefcase, Zap, Search, ChevronDown, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '../db/financeUtils';
+import { Virtuoso } from 'react-virtuoso';
 
 interface TransactionFeedProps {
   transactions: Transaction[];
@@ -24,7 +25,7 @@ const getCategoryIcon = (category: string) => {
 const TransactionRow = memo(({ t }: { t: Transaction }) => {
   return (
     <div 
-      className="flex items-center justify-between p-3 bg-[#1E1E1E] border border-white/5 active:bg-[#2A2A2A] transition-colors first-of-type:rounded-t-xl last-of-type:rounded-b-xl [content-visibility:auto] [contain-intrinsic-size:70px]"
+      className="flex items-center justify-between p-3 bg-[#1E1E1E] border border-white/5 active:bg-[#2A2A2A] transition-colors"
     >
       <div className="flex items-center gap-3 overflow-hidden">
         <div className={`p-2 rounded-lg shrink-0 ${t.type === 'INCOME' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
@@ -66,13 +67,6 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<FilterType>('ALL');
   const [collapsedDates, setCollapsedDates] = useState<Record<string, boolean>>({});
-  const [limit, setLimit] = useState(50);
-
-  const observerTarget = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setLimit(50);
-  }, [currentMonth, search, typeFilter]);
 
   const toggleDate = useCallback((date: string) => {
     setCollapsedDates(prev => ({ ...prev, [date]: !prev[date] }));
@@ -97,38 +91,18 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
 
   const sortedDates = useMemo(() => Object.keys(grouped).sort((a, b) => b.localeCompare(a)), [grouped]);
 
-  const paginatedRender = useMemo(() => {
+  const flatList = useMemo(() => {
     const renderData: { isHeader: boolean; date?: string; transaction?: Transaction }[] = [];
-    let count = 0;
-    
     for (const date of sortedDates) {
-      if (count >= limit) break;
       renderData.push({ isHeader: true, date });
       if (!collapsedDates[date]) {
         for (const t of grouped[date]) {
-          if (count >= limit) break;
           renderData.push({ isHeader: false, transaction: t });
-          count++;
         }
       }
     }
     return renderData;
-  }, [sortedDates, grouped, collapsedDates, limit]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      entries => { 
-        if (entries[0].isIntersecting) {
-          startTransition(() => {
-            setLimit(l => l + 50);
-          });
-        }
-      },
-      { threshold: 0.1, rootMargin: '200px' }
-    );
-    if (observerTarget.current) observer.observe(observerTarget.current);
-    return () => observer.disconnect();
-  }, [paginatedRender]);
+  }, [sortedDates, grouped, collapsedDates]);
 
   if (transactions.length === 0) return null;
 
@@ -160,12 +134,13 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
         </div>
       </div>
 
-      <div className="space-y-0.5">
-        {paginatedRender.map((item) => {
+      <Virtuoso
+        useWindowScroll
+        data={flatList}
+        itemContent={(_index, item) => {
           if (item.isHeader) {
             return (
               <DateHeader
-                key={`header-${item.date}`}
                 date={item.date!}
                 isCollapsed={!!collapsedDates[item.date!]}
                 count={grouped[item.date!].length}
@@ -173,16 +148,16 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
               />
             );
           }
-
-          return <TransactionRow key={item.transaction!.id} t={item.transaction!} />;
-        })}
-      </div>
-      
-      {filtered.length > limit && (
-        <div ref={observerTarget} className="h-10 flex items-center justify-center">
-          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
+          return <TransactionRow t={item.transaction!} />;
+        }}
+        components={{
+          List: React.forwardRef((props: any, ref) => (
+            <div ref={ref} style={props.style} className="space-y-0.5">
+              {props.children}
+            </div>
+          ))
+        }}
+      />
     </div>
   );
 };
