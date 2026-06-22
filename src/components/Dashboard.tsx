@@ -177,7 +177,7 @@ export const Dashboard: React.FC = () => {
             <div className={`glass-panel rounded-2xl overflow-hidden spring-pop border ${
               openTool === 'sync' 
                 ? 'border-violet-500/35 bg-violet-950/[0.04] shadow-lg shadow-violet-500/5' 
-                : 'border-violet-500/15 bg-white/[0.01] hover:border-violet-500/30 hover:bg-violet-950/[0.01] hover:shadow-lg hover:shadow-violet-500/5 hover:scale-[1.025] hover:-translate-y-0.5'
+                : 'border-violet-500/15 bg-white/[0.01] hover:border-violet-500/30 hover:bg-violet-950/[0.01] hover:shadow-lg hover:shadow-violet-500/5 card-hover-pop'
             }`}>
               <button
                 onClick={() => setOpenTool(openTool === 'sync' ? null : 'sync')}
@@ -206,12 +206,16 @@ export const Dashboard: React.FC = () => {
                   <ChevronDown size={18} className={`transition-transform duration-500 ${openTool === 'sync' ? 'rotate-180' : ''}`} />
                 </div>
               </button>
-              <div className={`transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden ${
+              <div className={`grid transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                 openTool === 'sync' 
-                  ? 'max-h-[800px] border-t border-white/5 opacity-100 p-6 bg-[#0c0c0f]/80' 
-                  : 'max-h-0 border-t-0 opacity-0 p-0 pointer-events-none'
+                  ? 'grid-rows-[1fr] opacity-100 border-t border-white/5' 
+                  : 'grid-rows-[0fr] opacity-0 pointer-events-none'
               }`}>
-                <SyncSettings />
+                <div className="overflow-hidden">
+                  <div className="p-6 bg-[#0c0c0f]/80">
+                    <SyncSettings />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -219,7 +223,7 @@ export const Dashboard: React.FC = () => {
             <div className={`glass-panel rounded-2xl overflow-hidden spring-pop border ${
               openTool === 'import' 
                 ? 'border-cyan-500/35 bg-cyan-950/[0.04] shadow-lg shadow-cyan-500/5' 
-                : 'border-cyan-500/15 bg-white/[0.01] hover:border-cyan-500/30 hover:bg-cyan-950/[0.01] hover:shadow-lg hover:shadow-cyan-500/5 hover:scale-[1.025] hover:-translate-y-0.5'
+                : 'border-cyan-500/15 bg-white/[0.01] hover:border-cyan-500/30 hover:bg-cyan-950/[0.01] hover:shadow-lg hover:shadow-cyan-500/5 card-hover-pop'
             }`}>
               <button
                 onClick={() => setOpenTool(openTool === 'import' ? null : 'import')}
@@ -248,12 +252,16 @@ export const Dashboard: React.FC = () => {
                   <ChevronDown size={18} className={`transition-transform duration-500 ${openTool === 'import' ? 'rotate-180' : ''}`} />
                 </div>
               </button>
-              <div className={`transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden ${
+              <div className={`grid transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                 openTool === 'import' 
-                  ? 'max-h-[800px] border-t border-white/5 opacity-100 p-6 bg-[#0c0c0f]/80' 
-                  : 'max-h-0 border-t-0 opacity-0 p-0 pointer-events-none'
+                  ? 'grid-rows-[1fr] opacity-100 border-t border-white/5' 
+                  : 'grid-rows-[0fr] opacity-0 pointer-events-none'
               }`}>
-                <BulkImporter onComplete={() => setActiveTab('wallet')} />
+                <div className="overflow-hidden">
+                  <div className="p-6 bg-[#0c0c0f]/80">
+                    <BulkImporter onComplete={() => setActiveTab('wallet')} />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -261,7 +269,7 @@ export const Dashboard: React.FC = () => {
             <div className={`glass-panel rounded-2xl overflow-hidden spring-pop border ${
               openTool === 'export' 
                 ? 'border-emerald-500/35 bg-emerald-950/[0.04] shadow-lg shadow-emerald-500/5' 
-                : 'border-emerald-500/15 bg-white/[0.01] hover:border-emerald-500/30 hover:bg-emerald-950/[0.01] hover:shadow-lg hover:shadow-emerald-500/5 hover:scale-[1.025] hover:-translate-y-0.5'
+                : 'border-emerald-500/15 bg-white/[0.01] hover:border-emerald-500/30 hover:bg-emerald-950/[0.01] hover:shadow-lg hover:shadow-emerald-500/5 card-hover-pop'
             }`}>
               <button
                 onClick={() => setOpenTool(openTool === 'export' ? null : 'export')}
@@ -290,12 +298,16 @@ export const Dashboard: React.FC = () => {
                   <ChevronDown size={18} className={`transition-transform duration-500 ${openTool === 'export' ? 'rotate-180' : ''}`} />
                 </div>
               </button>
-              <div className={`transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] overflow-hidden ${
+              <div className={`grid transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                 openTool === 'export' 
-                  ? 'max-h-[800px] border-t border-white/5 opacity-100 p-6 bg-[#0c0c0f]/80' 
-                  : 'max-h-0 border-t-0 opacity-0 p-0 pointer-events-none'
+                  ? 'grid-rows-[1fr] opacity-100 border-t border-white/5' 
+                  : 'grid-rows-[0fr] opacity-0 pointer-events-none'
               }`}>
-                <BulkExporter />
+                <div className="overflow-hidden">
+                  <div className="p-6 bg-[#0c0c0f]/80">
+                    <BulkExporter />
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -320,8 +332,8 @@ export const Dashboard: React.FC = () => {
           onClick={() => setActiveTab('wallet')}
           className={`flex flex-col items-center gap-1.5 spring-pop cursor-pointer active:scale-90 ${
             activeTab === 'wallet' 
-              ? 'text-primary scale-105 font-bold hover:scale-112 hover:-translate-y-0.5' 
-              : 'text-zinc-500 hover:text-zinc-300 hover:scale-110 hover:-translate-y-0.5'
+              ? 'text-primary scale-105 font-bold tab-pop-active' 
+              : 'text-zinc-500 hover:text-zinc-300 tab-pop'
           }`}
         >
           <Wallet size={20} className="transition-transform duration-200" />
@@ -332,8 +344,8 @@ export const Dashboard: React.FC = () => {
           onClick={() => setActiveTab('budgets')}
           className={`flex flex-col items-center gap-1.5 spring-pop cursor-pointer active:scale-90 ${
             activeTab === 'budgets' 
-              ? 'text-primary scale-105 font-bold hover:scale-112 hover:-translate-y-0.5' 
-              : 'text-zinc-500 hover:text-zinc-300 hover:scale-110 hover:-translate-y-0.5'
+              ? 'text-primary scale-105 font-bold tab-pop-active' 
+              : 'text-zinc-500 hover:text-zinc-300 tab-pop'
           }`}
         >
           <Target size={20} className="transition-transform duration-200" />
@@ -344,8 +356,8 @@ export const Dashboard: React.FC = () => {
           onClick={() => setActiveTab('vault')}
           className={`flex flex-col items-center gap-1.5 spring-pop cursor-pointer active:scale-90 ${
             activeTab === 'vault' 
-              ? 'text-violet-400 scale-105 font-bold hover:scale-112 hover:-translate-y-0.5' 
-              : 'text-zinc-500 hover:text-zinc-300 hover:scale-110 hover:-translate-y-0.5'
+              ? 'text-violet-400 scale-105 font-bold tab-pop-active' 
+              : 'text-zinc-500 hover:text-zinc-300 tab-pop'
           }`}
         >
           <PiggyBank size={20} className="transition-transform duration-200" />
@@ -356,8 +368,8 @@ export const Dashboard: React.FC = () => {
           onClick={() => setActiveTab('sync')}
           className={`flex flex-col items-center gap-1.5 spring-pop cursor-pointer active:scale-90 ${
             activeTab === 'sync' 
-              ? 'text-primary scale-105 font-bold hover:scale-112 hover:-translate-y-0.5' 
-              : 'text-zinc-500 hover:text-zinc-300 hover:scale-110 hover:-translate-y-0.5'
+              ? 'text-primary scale-105 font-bold tab-pop-active' 
+              : 'text-zinc-500 hover:text-zinc-300 tab-pop'
           }`}
         >
           <Settings size={20} className="transition-transform duration-200" />

@@ -16,38 +16,11 @@ type SortType = 'DATE' | 'HIGH' | 'LOW' | 'FREQUENT';
 
 const TransactionRow = memo(({ t, onSelect }: { t: Transaction, onSelect: (t: Transaction) => void }) => {
   const Icon = getCategoryIcon(t.category);
-  const elementRef = React.useRef<HTMLButtonElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
-
-  React.useEffect(() => {
-    const el = elementRef.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsVisible(entry.isIntersecting);
-      },
-      {
-        threshold: 0.05,
-        rootMargin: '-30px 0px -30px 0px'
-      }
-    );
-
-    observer.observe(el);
-    return () => {
-      observer.unobserve(el);
-    };
-  }, []);
 
   return (
     <button 
-      ref={elementRef}
       onClick={() => onSelect(t)}
-      className={`w-full flex items-center justify-between p-4 bg-[#1E1E1E] border border-white/10 active:bg-[#2A2A2A] text-left cursor-pointer rounded-2xl transition-all duration-550 ease-out transform origin-center ${
-        isVisible 
-          ? 'opacity-100 translate-y-0 scale-100' 
-          : 'opacity-0 translate-y-5 scale-95 pointer-events-none'
-      }`}
+      className="w-full flex items-center justify-between p-4 bg-[#1E1E1E] border border-white/10 active:bg-[#2A2A2A] text-left cursor-pointer rounded-2xl animate-row-fade-in transform origin-center active:scale-95 transition-[background-color,transform,border-color] duration-150"
     >
       <div className="flex items-center gap-3 overflow-hidden">
         <div className={`p-2 rounded-lg shrink-0 ${t.type === 'INCOME' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
