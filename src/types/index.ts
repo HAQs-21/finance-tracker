@@ -7,6 +7,20 @@ export interface Transaction {
   category: string;
   date: string;
   description: string;
+  savingsRecordId?: number;
+}
+
+export interface Budget {
+  category: string;
+  amount: number;
+}
+
+export interface SavingsRecord {
+  id?: number;
+  amount: number;
+  type: 'DEPOSIT' | 'WITHDRAW';
+  date: string;
+  description?: string;
 }
 
 export interface SummaryStats {
@@ -20,3 +34,4 @@ export interface CategoryStat {
   amount: number;
   percentage: number;
 }
+

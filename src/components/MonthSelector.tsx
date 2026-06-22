@@ -39,9 +39,9 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({ currentMonth, avai
               key={m}
               data-active={isActive}
               onClick={() => onChange(m)}
-              className={`snap-center shrink-0 px-4 py-1.5 rounded-full text-xs font-bold transition-colors border ${
+              className={`snap-center shrink-0 px-4 py-1.5 rounded-full text-xs font-bold border cursor-pointer btn-pop ${
                 isActive 
-                  ? 'bg-primary text-[#121212] border-primary' 
+                  ? 'bg-primary text-[#121212] border-primary shadow-sm shadow-primary/10' 
                   : 'bg-transparent text-zinc-400 border-white/10 hover:bg-[#1E1E1E]'
               }`}
             >

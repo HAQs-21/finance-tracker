@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useCallback, memo } from 'react';
 import type { Transaction } from '../types';
-import { Tag, ShoppingCart, Home, Car, Coffee, Briefcase, Zap, Search, ChevronDown, ChevronRight, ArrowUpDown } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, ArrowUpDown } from 'lucide-react';
 import { formatCurrency } from '../db/financeUtils';
 import { Virtuoso } from 'react-virtuoso';
+import { getCategoryIcon } from '../utils/categories';
 
 interface TransactionFeedProps {
   transactions: Transaction[];
@@ -13,34 +14,44 @@ interface TransactionFeedProps {
 type FilterType = 'ALL' | 'INCOME' | 'EXPENSE';
 type SortType = 'DATE' | 'HIGH' | 'LOW' | 'FREQUENT';
 
-const iconCache = new Map<string, React.ReactNode>();
-
-const getCategoryIcon = (category: string) => {
-  if (iconCache.has(category)) return iconCache.get(category);
-  
-  const c = category.toLowerCase();
-  let icon = <Tag size={14} />;
-  
-  if (c.includes('food') || c.includes('coffee')) icon = <Coffee size={14} />;
-  else if (c.includes('shop') || c.includes('cloth')) icon = <ShoppingCart size={14} />;
-  else if (c.includes('rent') || c.includes('home')) icon = <Home size={14} />;
-  else if (c.includes('trans') || c.includes('car')) icon = <Car size={14} />;
-  else if (c.includes('work') || c.includes('salary')) icon = <Briefcase size={14} />;
-  else if (c.includes('util') || c.includes('elec')) icon = <Zap size={14} />;
-  
-  iconCache.set(category, icon);
-  return icon;
-};
-
 const TransactionRow = memo(({ t, onSelect }: { t: Transaction, onSelect: (t: Transaction) => void }) => {
+  const Icon = getCategoryIcon(t.category);
+  const elementRef = React.useRef<HTMLButtonElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  React.useEffect(() => {
+    const el = elementRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting);
+      },
+      {
+        threshold: 0.05,
+        rootMargin: '-30px 0px -30px 0px'
+      }
+    );
+
+    observer.observe(el);
+    return () => {
+      observer.unobserve(el);
+    };
+  }, []);
+
   return (
     <button 
+      ref={elementRef}
       onClick={() => onSelect(t)}
-      className="w-full flex items-center justify-between p-3 bg-[#1E1E1E] border border-white/5 active:bg-[#2A2A2A] transition-colors text-left"
+      className={`w-full flex items-center justify-between p-4 bg-[#1E1E1E] border border-white/10 active:bg-[#2A2A2A] text-left cursor-pointer rounded-2xl transition-all duration-550 ease-out transform origin-center ${
+        isVisible 
+          ? 'opacity-100 translate-y-0 scale-100' 
+          : 'opacity-0 translate-y-5 scale-95 pointer-events-none'
+      }`}
     >
       <div className="flex items-center gap-3 overflow-hidden">
         <div className={`p-2 rounded-lg shrink-0 ${t.type === 'INCOME' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
-          {getCategoryIcon(t.category)}
+          <Icon size={14} />
         </div>
         <div className="truncate">
           <div className="text-sm font-semibold text-zinc-200 truncate">{t.description || t.category}</div>
@@ -156,30 +167,30 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
             <button
               key={t}
               onClick={() => setTypeFilter(t)}
-              className={`flex-1 text-[10px] font-bold py-1.5 rounded-lg transition-colors ${
-                typeFilter === t ? 'bg-white text-black' : 'text-zinc-500 hover:text-zinc-300'
+              className={`flex-1 text-[10px] font-bold py-1.5 rounded-lg cursor-pointer btn-pop ${
+                typeFilter === t ? 'bg-white text-black shadow-sm shadow-white/5' : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
               {t}
             </button>
           ))}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2.5">
           <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+            <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search transactions..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full bg-[#1E1E1E] border border-white/10 rounded-xl py-2 pl-9 pr-4 text-xs text-white focus:outline-none focus:border-primary transition-colors"
+              className="w-full bg-black/25 border border-white/5 focus:border-primary/40 focus:ring-1 focus:ring-primary/20 rounded-xl py-2.5 pl-9 pr-4 text-xs text-zinc-200 transition-all placeholder:text-zinc-650 outline-none"
             />
           </div>
-          <div className="relative shrink-0">
+          <div className="relative shrink-0 flex items-center">
             <select
               value={sortType}
               onChange={e => setSortType(e.target.value as SortType)}
-              className="appearance-none bg-[#1E1E1E] border border-white/10 rounded-xl py-2 pl-8 pr-4 text-[10px] font-bold uppercase text-white focus:outline-none focus:border-primary transition-colors h-full"
+              className="appearance-none bg-black/25 border border-white/5 focus:border-primary/40 focus:ring-1 focus:ring-primary/20 rounded-xl py-2.5 pl-8.5 pr-8 text-xs font-semibold text-zinc-200 transition-all outline-none h-full cursor-pointer"
             >
               <option value="DATE">Date</option>
               <option value="HIGH">High</option>
@@ -187,6 +198,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
               <option value="FREQUENT">Freq</option>
             </select>
             <ArrowUpDown size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+            <ChevronDown size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
           </div>
         </div>
       </div>
@@ -194,6 +206,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
       <Virtuoso
         useWindowScroll
         data={flatList}
+        overscan={500}
         itemContent={(_index, item) => {
           if (item.isHeader) {
             return (
@@ -209,7 +222,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
         }}
         components={{
           List: React.forwardRef((props: any, ref) => (
-            <div ref={ref} style={props.style} className="space-y-0.5">
+            <div ref={ref} style={props.style} className="space-y-2.5">
               {props.children}
             </div>
           ))

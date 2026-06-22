@@ -8,7 +8,6 @@ import {
   AlertCircle, 
   Loader2, 
   ArrowRight, 
-  FileText, 
   ChevronLeft 
 } from 'lucide-react';
 
@@ -64,72 +63,63 @@ export const BulkImporter: React.FC<BulkImporterProps> = ({ onComplete }) => {
 
   if (step === 'input') {
     return (
-      <div className="bg-[#1E1E1E] rounded-xl p-5 border border-white/10 space-y-4 animate-in fade-in duration-300">
-        <div className="flex items-center gap-3">
-          <div className="bg-white/5 p-2 rounded-lg text-primary">
-            <FileText size={20} />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-white tracking-tight">Bulk Importer</h2>
-            <p className="text-zinc-500 text-[10px] uppercase tracking-wider font-bold">Unstructured Text</p>
-          </div>
-        </div>
-
+      <div className="space-y-4 animate-in fade-in duration-300">
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="January (80k+10k)&#10;5k Rent&#10;1200 Groceries"
-          className="w-full h-48 bg-[#121212] border border-white/10 rounded-lg p-4 text-zinc-300 placeholder:text-zinc-700 focus:outline-none focus:border-primary transition-colors font-mono text-xs resize-none"
+          className="w-full h-44 premium-input font-mono text-xs resize-none placeholder:text-zinc-600 leading-relaxed"
           disabled={loading}
         />
 
         <button
           onClick={handleParse}
           disabled={loading || !text.trim()}
-          className="w-full bg-primary text-[#121212] font-bold py-3 rounded-lg hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-xs"
+          className="w-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold py-3.5 rounded-xl hover:shadow-lg hover:shadow-violet-600/10 flex items-center justify-center gap-2 text-xs cursor-pointer btn-pop disabled:shadow-none"
         >
-          {loading ? <Loader2 className="animate-spin" size={16} /> : <>Parse Preview <ArrowRight size={14} /></>}
+          {loading ? <Loader2 className="animate-spin" size={15} /> : <>Parse Preview <ArrowRight size={14} /></>}
         </button>
       </div>
     );
   }
 
   return (
-    <div className="bg-[#1E1E1E] rounded-xl p-5 border border-white/10 space-y-4 animate-in slide-in-from-right-4 duration-300">
-      <div className="flex items-center justify-between">
-        <button onClick={() => setStep('input')} className="p-1 hover:bg-white/5 rounded-lg transition-colors">
-          <ChevronLeft size={20} className="text-zinc-400" />
+    <div className="space-y-4 animate-in fade-in duration-300">
+      <div className="flex items-center justify-between pb-1">
+        <button 
+          onClick={reset} 
+          className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition-colors cursor-pointer"
+        >
+          <ChevronLeft size={16} />
+          <span>Back</span>
         </button>
-        <h2 className="text-sm font-bold text-white uppercase tracking-wider">Review Parsing</h2>
-        <div className="w-8" />
+        <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+          Valid Transactions ({previewData.length})
+        </span>
       </div>
 
       <div className="space-y-3">
-        <div className="text-[10px] font-bold text-zinc-500 uppercase px-1">
-          Valid Transactions ({previewData.length})
-        </div>
-        
-        <div className="max-h-64 overflow-y-auto rounded-lg border border-white/10 no-scrollbar bg-[#121212]">
+        <div className="max-h-56 overflow-y-auto rounded-xl border border-white/5 bg-black/25 custom-scrollbar">
           <table className="w-full text-left text-xs border-collapse">
-            <thead className="sticky top-0 bg-[#2A2A2A] text-zinc-400 text-[9px] uppercase tracking-widest font-bold">
+            <thead className="sticky top-0 bg-zinc-950/80 backdrop-blur-sm text-zinc-400 text-[9px] uppercase tracking-widest font-semibold border-b border-white/5">
               <tr>
-                <th className="px-3 py-2">Type</th>
-                <th className="px-3 py-2 text-right">Amount</th>
-                <th className="px-3 py-2">Desc</th>
+                <th className="px-4 py-2.5">Type</th>
+                <th className="px-4 py-2.5 text-right">Amount</th>
+                <th className="px-4 py-2.5">Description</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {previewData.map((t, i) => (
-                <tr key={i} className="text-zinc-300">
-                  <td className="px-3 py-2">
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${t.type === 'INCOME' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
-                      {t.type.substring(0,3)}
+                <tr key={i} className="text-zinc-300 hover:bg-white/[0.01] transition-colors">
+                  <td className="px-4 py-2.5">
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${t.type === 'INCOME' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10' : 'bg-rose-500/10 text-rose-400 border border-rose-500/10'}`}>
+                      {t.type === 'INCOME' ? 'INC' : 'EXP'}
                     </span>
                   </td>
-                  <td className={`px-3 py-2 text-right font-bold ${t.type === 'INCOME' ? 'text-emerald-400' : 'text-white'}`}>
+                  <td className={`px-4 py-2.5 text-right font-black ${t.type === 'INCOME' ? 'text-emerald-400' : 'text-zinc-100'}`}>
                     {formatCurrency(t.amount)}
                   </td>
-                  <td className="px-3 py-2 truncate max-w-[100px] opacity-80">{t.description}</td>
+                  <td className="px-4 py-2.5 truncate max-w-[120px] text-zinc-400 text-[11px] font-medium">{t.description}</td>
                 </tr>
               ))}
             </tbody>
@@ -141,27 +131,27 @@ export const BulkImporter: React.FC<BulkImporterProps> = ({ onComplete }) => {
         <div className="space-y-1.5">
           <div className="flex items-center gap-2 text-rose-400 px-1">
             <AlertCircle size={12} />
-            <span className="text-[9px] font-bold uppercase tracking-wider">Skipped ({failedLines.length})</span>
+            <span className="text-[9px] font-bold uppercase tracking-wider">Unparsed Lines ({failedLines.length})</span>
           </div>
-          <div className="p-3 bg-rose-500/5 rounded-lg border border-rose-500/10 max-h-24 overflow-y-auto no-scrollbar font-mono text-[10px] text-rose-400/60 leading-relaxed">
+          <div className="p-3 bg-rose-500/5 rounded-xl border border-rose-500/10 max-h-24 overflow-y-auto custom-scrollbar font-mono text-[10px] text-rose-400/60 leading-relaxed">
             {failedLines.map((line, i) => <div key={i}>{line}</div>)}
           </div>
         </div>
       )}
 
-      <div className="flex gap-2 pt-2">
+      <div className="flex gap-3 pt-2">
         <button
           onClick={reset}
-          className="flex-1 border border-white/10 text-zinc-400 font-bold py-3 rounded-lg hover:bg-white/5 transition-colors text-xs"
+          className="flex-1 bg-white/[0.03] border border-white/10 text-zinc-300 font-bold py-3.5 rounded-xl hover:bg-white/[0.06] hover:text-white text-xs cursor-pointer btn-pop"
         >
           Cancel
         </button>
         <button
           onClick={handleConfirm}
           disabled={loading || previewData.length === 0}
-          className="flex-[2] bg-primary text-[#121212] font-bold py-3 rounded-lg hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50 text-xs"
+          className="flex-[2] bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-bold py-3.5 rounded-xl hover:shadow-lg hover:shadow-violet-600/10 flex items-center justify-center gap-2 text-xs cursor-pointer shadow-md btn-pop"
         >
-          {loading ? <Loader2 className="animate-spin" size={16} /> : <>Commit <CheckCircle2 size={14} /></>}
+          {loading ? <Loader2 className="animate-spin" size={15} /> : <>Commit <CheckCircle2 size={14} /></>}
         </button>
       </div>
     </div>

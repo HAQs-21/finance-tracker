@@ -1,4 +1,3 @@
-import type { Transaction } from '../types';
 
 export interface GithubConfig {
   token: string;
@@ -8,7 +7,7 @@ export interface GithubConfig {
 }
 
 export interface GithubFileResponse {
-  content: Transaction[];
+  content: any;
   sha: string;
 }
 
@@ -69,12 +68,12 @@ export async function fetchFromGitHub(): Promise<GithubFileResponse | null> {
   };
 }
 
-export async function pushToGitHub(transactions: Transaction[], sha: string): Promise<string> {
+export async function pushToGitHub(payload: any, sha: string): Promise<string> {
   const config = getActiveConfig();
   if (!config) throw new Error('GitHub configuration missing');
 
   const url = `https://api.github.com/repos/${config.owner}/${config.repo}/contents/${config.path}`;
-  const content = toBase64(JSON.stringify(transactions, null, 2));
+  const content = toBase64(JSON.stringify(payload, null, 2));
 
   const response = await fetch(url, {
     method: 'PUT',
@@ -101,3 +100,4 @@ export async function pushToGitHub(transactions: Transaction[], sha: string): Pr
   const data = await response.json();
   return data.content.sha;
 }
+
