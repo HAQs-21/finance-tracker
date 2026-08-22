@@ -39,10 +39,10 @@ export const MonthSelector: React.FC<MonthSelectorProps> = ({ currentMonth, avai
               key={m}
               data-active={isActive}
               onClick={() => onChange(m)}
-              className={`snap-center shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer btn-pop ${
+              className={`snap-center shrink-0 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer pressable ${
                 isActive 
-                  ? 'bg-primary text-[#121212] shadow-sm shadow-primary/20 scale-[1.02]' 
-                  : 'bg-white/[0.04] text-zinc-400 border border-white/5 hover:bg-white/[0.08] hover:text-zinc-200'
+                  ? 'bg-primary text-white shadow-md shadow-primary/25 scale-[1.02]' 
+                  : 'bg-[#141418] text-zinc-400 border border-white/5 hover:bg-[#1a1a20] hover:text-zinc-200'
               }`}
             >
               {formatMonth(m)}
