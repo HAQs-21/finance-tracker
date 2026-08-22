@@ -358,12 +358,14 @@ export const WalletView: React.FC<WalletViewProps> = ({
             }}
           />
         ) : (
-          <div className="p-8 text-center bg-[#101014] rounded-2xl border border-white/5 space-y-2 mt-2">
-            <div className="w-10 h-10 rounded-full bg-white/5 text-zinc-500 flex items-center justify-center mx-auto">
-              <Wallet size={18} />
+          <div className="p-8 text-center bg-[#101014] rounded-3xl border border-white/5 space-y-3 mt-2">
+            <div className="w-12 h-12 rounded-2xl bg-white/5 text-zinc-500 flex items-center justify-center mx-auto">
+              <Wallet size={20} />
             </div>
-            <div className="text-xs font-bold text-zinc-400">No transactions recorded</div>
-            <p className="text-[10px] text-zinc-600">Tap + to log an entry</p>
+            <div className="space-y-1">
+              <div className="text-sm font-black text-zinc-300">No records found</div>
+              <p className="text-xs text-zinc-500">Tap + to log an expense or restore from Cloud</p>
+            </div>
           </div>
         )}
       </section>

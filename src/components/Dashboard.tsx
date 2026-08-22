@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useFinance } from '../hooks/useFinance';
 import { Navigation, type TabType } from './Navigation';
 import { AppHeader } from './AppHeader';
@@ -8,6 +8,9 @@ import { VaultView } from './VaultView';
 import { ToolsView } from './ToolsView';
 import { AddTransactionSheet } from './AddTransactionSheet';
 import { TransactionModal } from './TransactionModal';
+import { getStoredConfig } from '../services/githubSync';
+import { syncPull } from '../db/syncController';
+import { db } from '../db/db';
 import type { Transaction } from '../types';
 
 export const Dashboard: React.FC = () => {
@@ -33,6 +36,18 @@ export const Dashboard: React.FC = () => {
     setBudget,
     deleteBudget
   } = useFinance();
+
+  // Auto-sync from cloud on startup if credentials exist and local data is empty
+  useEffect(() => {
+    const config = getStoredConfig();
+    if (config?.token && config.owner && config.repo) {
+      db.transactions.count().then((count) => {
+        if (count === 0) {
+          syncPull().catch((err) => console.warn('Auto-sync pull notice:', err));
+        }
+      });
+    }
+  }, []);
 
   return (
     <div className="space-y-4 pb-24">
