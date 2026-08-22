@@ -81,93 +81,118 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-28">
-      {/* App Header */}
-      <header className="flex flex-col gap-2">
+      {/* App Header & Month Selector */}
+      <header className="space-y-3">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-white">{tabHeader.title}</h1>
           <p className="text-zinc-500 text-xs font-bold uppercase tracking-wider mt-0.5">{tabHeader.subtitle}</p>
         </div>
-      </header>
 
-      {/* Month Selector for Wallet and Budgets tab */}
-      {(activeTab === 'wallet' || activeTab === 'budgets') && (
-        <MonthSelector 
-          currentMonth={currentMonth} 
-          availableMonths={availableMonths} 
-          onChange={setCurrentMonth} 
-        />
-      )}
+        {/* Month Selector for Wallet and Budgets tab */}
+        {(activeTab === 'wallet' || activeTab === 'budgets') && (
+          <MonthSelector 
+            currentMonth={currentMonth} 
+            availableMonths={availableMonths} 
+            onChange={setCurrentMonth} 
+          />
+        )}
+      </header>
 
       {/* Main content viewport switching using CSS for 60fps animations */}
       <main className="relative min-h-[300px]">
         {activeTab === 'wallet' && (
-          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-250">
-            {/* Monthly Balance Card */}
-            <section className="bg-gradient-to-br from-[#1E1E1E] to-[#141414] p-6 rounded-2xl border border-white/10 relative overflow-hidden">
-              <div className="absolute -top-4 -right-4 p-8 opacity-5 text-white pointer-events-none">
-                <Wallet size={120} />
+          <div className="space-y-5 animate-in fade-in slide-in-from-bottom-3 duration-250">
+            {/* Hero Balance Card */}
+            <section className="bg-gradient-to-br from-[#1e1433] via-[#161224] to-[#100e17] p-5 sm:p-6 rounded-3xl border border-violet-500/25 relative overflow-hidden shadow-xl shadow-black/50">
+              <div className="absolute -top-6 -right-6 p-8 opacity-[0.03] text-white pointer-events-none">
+                <Wallet size={140} />
               </div>
-              <div className="flex justify-between items-start">
+              
+              <div className="flex flex-col gap-4 relative z-10">
                 <div>
-                  <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-1">
-                    {currentMonth === 'ALL' ? 'All Time Balance' : 'Monthly Wallet Balance'}
-                  </p>
-                  <div className="text-3xl sm:text-4xl font-black text-white tracking-tighter">
+                  <div className="flex items-center justify-between">
+                    <span className="text-zinc-400 text-[10px] sm:text-xs font-bold uppercase tracking-widest flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      {currentMonth === 'ALL' ? 'Total Liquid Cash' : 'Monthly Wallet Balance'}
+                    </span>
+                  </div>
+                  <div className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-1.5">
                     {formatCurrency(monthlyStats.balance)}
                   </div>
                 </div>
-                {lifetimeStats.vaultBalance > 0 && (
-                  <div 
-                    onClick={() => setActiveTab('vault')}
-                    className="cursor-pointer px-3 py-1.5 rounded-xl bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-bold flex items-center gap-1.5 hover:bg-violet-500/20 transition-colors btn-pop"
-                    title="Open Savings Vault"
-                  >
-                    <PiggyBank size={14} className="text-violet-400" />
-                    <span>Vault: {formatCurrency(lifetimeStats.vaultBalance)}</span>
+
+                {/* Vault Capsule Bridge */}
+                <div 
+                  onClick={() => setActiveTab('vault')}
+                  className="cursor-pointer p-3 rounded-2xl bg-black/50 border border-violet-500/30 hover:border-violet-500/50 flex items-center justify-between group transition-all duration-200 btn-pop"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-violet-500/20 text-violet-300 flex items-center justify-center shrink-0">
+                      <PiggyBank size={16} />
+                    </div>
+                    <div>
+                      <div className="text-[9px] font-bold text-violet-400 uppercase tracking-wider">Savings Vault Reserve</div>
+                      <div className="text-sm font-black text-white">{formatCurrency(lifetimeStats.vaultBalance)}</div>
+                    </div>
                   </div>
-                )}
+                  <span className="text-[10px] font-bold text-violet-400 group-hover:translate-x-0.5 transition-transform flex items-center gap-0.5 pr-1">
+                    Open Vault →
+                  </span>
+                </div>
               </div>
             </section>
 
-            {/* Income, Expense & Savings Summary Cards (3 Columns) */}
-            <section className="grid grid-cols-3 gap-2.5">
+            {/* Asymmetric Cashflow Metrics: Row 1 (Income & Expense) + Row 2 (Savings) */}
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <SummaryCard 
+                  title="Income" 
+                  value={monthlyStats.totalIncome} 
+                  type="income" 
+                  icon={<TrendingUp size={15} />}
+                  subtitle="Earnings inflow"
+                />
+                <SummaryCard 
+                  title="Expenses" 
+                  value={monthlyStats.totalExpense} 
+                  type="expense" 
+                  icon={<TrendingDown size={15} />}
+                  subtitle="Total spending"
+                />
+              </div>
+
               <SummaryCard 
-                title="Income" 
-                value={monthlyStats.totalIncome} 
-                type="income" 
-                icon={<TrendingUp size={14} />}
-              />
-              <SummaryCard 
-                title="Expenses" 
-                value={monthlyStats.totalExpense} 
-                type="expense" 
-                icon={<TrendingDown size={14} />}
-              />
-              <SummaryCard 
-                title="Savings" 
+                title="Monthly Savings Added" 
                 value={monthlyStats.totalSavings} 
                 type="savings" 
-                icon={<PiggyBank size={14} />}
+                icon={<PiggyBank size={16} />}
+                subtitle={monthlyStats.totalSavings >= 0 ? "Allocated into Vault this month" : "Withdrawn from Vault to Wallet"}
+                onClick={() => setActiveTab('vault')}
               />
-            </section>
+            </div>
 
-            {/* Lifetime Summary Stats Grid */}
-            <section className="grid grid-cols-4 gap-1.5 bg-[#1E1E1E] p-3 rounded-xl border border-white/5">
-              <div className="text-center border-r border-white/5 pr-1">
-                <div className="text-[8px] sm:text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Life Bal</div>
-                <div className="text-[11px] sm:text-xs font-black text-zinc-200 mt-0.5 truncate">{formatCurrency(lifetimeStats.balance)}</div>
+            {/* Lifetime Financial Matrix (2x2 Grid) */}
+            <section className="bg-[#151518] p-4 rounded-2xl border border-white/5 space-y-2.5">
+              <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest px-0.5">
+                All-Time Wealth Matrix
               </div>
-              <div className="text-center border-r border-white/5 pr-1">
-                <div className="text-[8px] sm:text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Life Inc</div>
-                <div className="text-[11px] sm:text-xs font-black text-emerald-400 mt-0.5 truncate">{formatCurrency(lifetimeStats.totalIncome)}</div>
-              </div>
-              <div className="text-center border-r border-white/5 pr-1">
-                <div className="text-[8px] sm:text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Life Exp</div>
-                <div className="text-[11px] sm:text-xs font-black text-rose-400 mt-0.5 truncate">{formatCurrency(lifetimeStats.totalExpense)}</div>
-              </div>
-              <div className="text-center">
-                <div className="text-[8px] sm:text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Vault Bal</div>
-                <div className="text-[11px] sm:text-xs font-black text-violet-400 mt-0.5 truncate">{formatCurrency(lifetimeStats.vaultBalance)}</div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <div className="bg-black/30 p-3 rounded-xl border border-white/5">
+                  <div className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Liquid Cash</div>
+                  <div className="text-sm font-black text-zinc-100 mt-0.5">{formatCurrency(lifetimeStats.balance)}</div>
+                </div>
+                <div className="bg-black/30 p-3 rounded-xl border border-violet-500/15">
+                  <div className="text-[9px] font-bold text-violet-400/80 uppercase tracking-wider">Vault Reserve</div>
+                  <div className="text-sm font-black text-violet-300 mt-0.5">{formatCurrency(lifetimeStats.vaultBalance)}</div>
+                </div>
+                <div className="bg-black/30 p-3 rounded-xl border border-emerald-500/15">
+                  <div className="text-[9px] font-bold text-emerald-500/80 uppercase tracking-wider">Total Earned</div>
+                  <div className="text-sm font-black text-emerald-400 mt-0.5">{formatCurrency(lifetimeStats.totalIncome)}</div>
+                </div>
+                <div className="bg-black/30 p-3 rounded-xl border border-rose-500/15">
+                  <div className="text-[9px] font-bold text-rose-500/80 uppercase tracking-wider">Total Spent</div>
+                  <div className="text-sm font-black text-rose-400 mt-0.5">{formatCurrency(lifetimeStats.totalExpense)}</div>
+                </div>
               </div>
             </section>
 
