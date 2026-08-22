@@ -160,9 +160,7 @@ export async function parseTextToPreview(rawText: string): Promise<ParseResult> 
         } else {
           // 3. Smart Keyword Categorization
           const descLower = cleanDesc.toLowerCase();
-          if (descLower.match(/\b(saving|savings|vault|reserve)\b/)) {
-            finalCategory = 'Savings';
-          } else if (descLower.match(/\b(food|eat|dining|coffee|lunch|dinner|breakfast|pizza|burger|cafe|restaurant|grocery|groceries|snack|tea|milk|bread|fruit|vegetable)\b/)) {
+          if (descLower.match(/\b(food|eat|dining|coffee|lunch|dinner|breakfast|pizza|burger|cafe|restaurant|grocery|groceries|snack|tea|milk|bread|fruit|vegetable)\b/)) {
             finalCategory = 'Food';
           } else if (descLower.match(/\b(rent|home|house|apartment|flat)\b/)) {
             finalCategory = 'Rent';
@@ -184,10 +182,11 @@ export async function parseTextToPreview(rawText: string): Promise<ParseResult> 
         }
       }
 
-      // Check if this is a savings deposit / withdrawal
+      // Check if this is an explicit savings deposit / withdrawal
       if (
-        finalCategory.toLowerCase().startsWith('saving') || 
-        finalCategory.toLowerCase() === 'vault'
+        finalCategory.toLowerCase() === 'savings' || 
+        finalCategory.toLowerCase() === 'vault' ||
+        bracketTagMatch?.[1]?.toLowerCase() === 'savings'
       ) {
         const isWithdraw = trimmed.startsWith('-') || cleanDesc.toLowerCase().includes('withdraw');
         savings.push({

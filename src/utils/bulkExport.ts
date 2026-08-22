@@ -65,15 +65,14 @@ export function exportTransactionsToText(
         amtStr = `${t.amount / 1000}k`;
       }
       
-      const desc = (t.description || t.category || '').trim();
+      let desc = (t.description || t.category || '').trim();
       const cat = (t.category || '').trim();
 
-      if (cat && cat !== 'General' && cat !== 'Imported' && cat !== 'Income' && cat !== 'Savings') {
-        if (desc.toLowerCase().includes(cat.toLowerCase())) {
-          output += `${amtStr} ${desc}\n`;
-        } else {
-          output += `${amtStr} ${desc} [${cat}]\n`;
-        }
+      // Clean any existing duplicate brackets from description
+      desc = desc.replace(/\s*\[[a-zA-Z\s:]+\]\s*$/, '').trim();
+
+      if (cat && cat !== 'Income' && cat !== 'Savings') {
+        output += `${amtStr} ${desc} [${cat}]\n`;
       } else {
         output += `${amtStr} ${desc}\n`;
       }
