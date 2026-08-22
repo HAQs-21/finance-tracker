@@ -277,7 +277,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
           </div>
         </div>
 
-        {/* Horizontal Dropdown Field: Total Cash */}
+        {/* Horizontal Dropdown Field: Total amount */}
         <div className="pt-1 border-t border-white/5">
           <button
             type="button"
@@ -289,7 +289,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
                 <Coins size={13} />
               </div>
               <span className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors">
-                Total Cash
+                Total amount
               </span>
               <span className="text-[10px] text-zinc-500 font-medium">
                 (Wallet + Savings)
