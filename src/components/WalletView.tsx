@@ -5,12 +5,14 @@ import {
   Search, 
   ArrowUpDown, 
   ChevronDown, 
+  ChevronUp, 
   ChevronRight, 
   PiggyBank, 
   ArrowUpRight, 
   ArrowDownLeft, 
   Landmark, 
-  Wallet 
+  Wallet,
+  Coins
 } from 'lucide-react';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { SegmentedControl } from './ui/SegmentedControl';
@@ -125,6 +127,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
   const [typeFilter, setTypeFilter] = useState<FilterType>('ALL');
   const [sortType, setSortType] = useState<SortType>('DATE');
   const [collapsedDates, setCollapsedDates] = useState<Record<string, boolean>>({});
+  const [showTotalCash, setShowTotalCash] = useState(false);
 
   const toggleDate = useCallback((date: string) => {
     setCollapsedDates((prev) => ({ ...prev, [date]: !prev[date] }));
@@ -217,23 +220,14 @@ export const WalletView: React.FC<WalletViewProps> = ({
     <div className="space-y-4 animate-fade-in">
       {/* --- SIMPLIFIED FINANCIAL HEADER --- */}
       <section className="bg-gradient-to-b from-[#1b152d] via-[#120e20] to-[#0a0812] p-5 rounded-3xl border border-violet-500/30 shadow-2xl shadow-violet-950/30 space-y-4">
-        {/* Top: Balance & Total Cash */}
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-1.5 text-zinc-300 text-[10px] font-black uppercase tracking-wider">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Balance</span>
-            </div>
-            <div className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-1 drop-shadow-md">
-              <AnimatedNumber value={balance} />
-            </div>
+        {/* Top: Balance */}
+        <div>
+          <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] font-bold uppercase tracking-wider">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Balance</span>
           </div>
-
-          <div className="text-right bg-white/[0.05] border border-white/10 px-3.5 py-2 rounded-2xl">
-            <div className="text-[9px] font-black text-zinc-400 uppercase tracking-wider">Total Cash</div>
-            <div className="text-sm sm:text-base font-black text-emerald-400 tabular-nums mt-0.5">
-              {formatCurrency(totalCash)}
-            </div>
+          <div className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-1 drop-shadow-md">
+            <AnimatedNumber value={balance} />
           </div>
         </div>
 
@@ -281,6 +275,57 @@ export const WalletView: React.FC<WalletViewProps> = ({
               <AnimatedNumber value={displayTax} />
             </div>
           </div>
+        </div>
+
+        {/* Horizontal Dropdown Field: Total Cash */}
+        <div className="pt-1 border-t border-white/5">
+          <button
+            type="button"
+            onClick={() => setShowTotalCash((prev) => !prev)}
+            className="w-full flex items-center justify-between p-3 rounded-2xl bg-[#101014]/80 hover:bg-[#15151c] border border-white/5 hover:border-white/10 transition-all cursor-pointer pressable select-none group"
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                <Coins size={13} />
+              </div>
+              <span className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors">
+                Total Cash
+              </span>
+              <span className="text-[10px] text-zinc-500 font-medium">
+                (Wallet + Savings)
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {showTotalCash ? (
+                <span className="text-xs sm:text-sm font-black text-emerald-400 tabular-nums">
+                  {formatCurrency(totalCash)}
+                </span>
+              ) : (
+                <span className="text-[11px] font-semibold text-zinc-500 flex items-center gap-1">
+                  Tap to view <ChevronDown size={13} />
+                </span>
+              )}
+              {showTotalCash && <ChevronUp size={13} className="text-zinc-400" />}
+            </div>
+          </button>
+
+          {showTotalCash && (
+            <div className="mt-2 p-3.5 rounded-2xl bg-[#0d0d12] border border-white/5 animate-fade-in grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">In Hand (Wallet)</div>
+                <div className="text-xs sm:text-sm font-black text-zinc-200 tabular-nums mt-0.5">
+                  {formatCurrency(balance)}
+                </div>
+              </div>
+              <div>
+                <div className="text-[10px] font-bold text-violet-400 uppercase tracking-wider">In Savings (Vault)</div>
+                <div className="text-xs sm:text-sm font-black text-violet-300 tabular-nums mt-0.5">
+                  {formatCurrency(lifetimeStats.totalSavings)}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
