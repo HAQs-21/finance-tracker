@@ -1,4 +1,4 @@
-import type { Transaction } from '../types';
+import type { Transaction, SavingsRecord } from '../types';
 
 const MONTHS: Record<string, string> = {
   january: '01', february: '02', march: '03', april: '04',
@@ -20,6 +20,7 @@ const parseVal = (val: string): number => {
 
 export interface ParseResult {
   transactions: Transaction[];
+  savings: SavingsRecord[];
   failedLines: string[];
 }
 
@@ -30,6 +31,7 @@ export async function parseTextToPreview(rawText: string): Promise<ParseResult> 
   let currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
   
   const transactions: Transaction[] = [];
+  const savings: SavingsRecord[] = [];
   const failedLines: string[] = [];
 
   for (let line of lines) {
@@ -129,7 +131,7 @@ export async function parseTextToPreview(rawText: string): Promise<ParseResult> 
         rawDesc = trimmed;
       } else {
         // Standard rule: [Optional bullets -*•#>] Amount Description
-        const standardMatch = trimmed.match(/^[\s\-*•#>]*(\d+(?:\.\d+)?k?)\s+(.+)$/i);
+        const standardMatch = trimmed.match(/^[\s\-*•#+>]*(\d+(?:\.\d+)?k?)\s+(.+)$/i);
         if (standardMatch) {
           amount = parseVal(standardMatch[1]);
           rawDesc = standardMatch[2];
@@ -144,8 +146,8 @@ export async function parseTextToPreview(rawText: string): Promise<ParseResult> 
       let finalCategory = 'General';
       let cleanDesc = rawDesc.trim();
 
-      // 1. Check for explicit bracket tag: e.g. "Dinner [Food]" or "[Food] Dinner"
-      const bracketTagMatch = cleanDesc.match(/\[([a-zA-Z\s]+)\]/);
+      // 1. Check for explicit bracket tag: e.g. "Dinner [Food]" or "+5k [Savings]"
+      const bracketTagMatch = cleanDesc.match(/\[([a-zA-Z\s:]+)\]/);
       if (bracketTagMatch) {
         finalCategory = bracketTagMatch[1].trim();
         cleanDesc = cleanDesc.replace(bracketTagMatch[0], '').trim();
@@ -158,7 +160,9 @@ export async function parseTextToPreview(rawText: string): Promise<ParseResult> 
         } else {
           // 3. Smart Keyword Categorization
           const descLower = cleanDesc.toLowerCase();
-          if (descLower.match(/\b(food|eat|dining|coffee|lunch|dinner|breakfast|pizza|burger|cafe|restaurant|grocery|groceries|snack|tea|milk|bread|fruit|vegetable)\b/)) {
+          if (descLower.match(/\b(saving|savings|vault|reserve)\b/)) {
+            finalCategory = 'Savings';
+          } else if (descLower.match(/\b(food|eat|dining|coffee|lunch|dinner|breakfast|pizza|burger|cafe|restaurant|grocery|groceries|snack|tea|milk|bread|fruit|vegetable)\b/)) {
             finalCategory = 'Food';
           } else if (descLower.match(/\b(rent|home|house|apartment|flat)\b/)) {
             finalCategory = 'Rent';
@@ -180,6 +184,21 @@ export async function parseTextToPreview(rawText: string): Promise<ParseResult> 
         }
       }
 
+      // Check if this is a savings deposit / withdrawal
+      if (
+        finalCategory.toLowerCase().startsWith('saving') || 
+        finalCategory.toLowerCase() === 'vault'
+      ) {
+        const isWithdraw = trimmed.startsWith('-') || cleanDesc.toLowerCase().includes('withdraw');
+        savings.push({
+          amount: Math.abs(amount),
+          type: isWithdraw ? 'WITHDRAW' : 'DEPOSIT',
+          date: `${currentYear}-${currentMonth}-15`,
+          description: cleanDesc.replace(/^(deposit|withdraw|withdrawal):?\s*/i, '').trim() || (isWithdraw ? 'Withdrawal' : 'Deposit')
+        });
+        continue;
+      }
+
       transactions.push({
         amount,
         type: 'EXPENSE',
@@ -192,5 +211,5 @@ export async function parseTextToPreview(rawText: string): Promise<ParseResult> 
     }
   }
 
-  return { transactions, failedLines };
+  return { transactions, savings, failedLines };
 }

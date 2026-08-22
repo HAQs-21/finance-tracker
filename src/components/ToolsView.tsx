@@ -127,6 +127,7 @@ export const ToolsView: React.FC<ToolsViewProps> = ({ transactions, savings = []
   const [importText, setImportText] = useState('');
   const [importStep, setImportStep] = useState<'input' | 'preview'>('input');
   const [previewTransactions, setPreviewTransactions] = useState<Transaction[]>([]);
+  const [previewSavings, setPreviewSavings] = useState<SavingsRecord[]>([]);
   const [failedLines, setFailedLines] = useState<string[]>([]);
   const [importLoading, setImportLoading] = useState(false);
 
@@ -136,6 +137,7 @@ export const ToolsView: React.FC<ToolsViewProps> = ({ transactions, savings = []
     try {
       const result = await parseTextToPreview(importText);
       setPreviewTransactions(result.transactions);
+      setPreviewSavings(result.savings || []);
       setFailedLines(result.failedLines);
       setImportStep('preview');
     } catch {
@@ -146,14 +148,24 @@ export const ToolsView: React.FC<ToolsViewProps> = ({ transactions, savings = []
   };
 
   const handleCommitImport = async () => {
-    if (previewTransactions.length === 0) return;
+    if (previewTransactions.length === 0 && previewSavings.length === 0) return;
     setImportLoading(true);
     try {
-      await db.transactions.bulkAdd(previewTransactions);
-      showToast(`${previewTransactions.length} transactions imported`, 'success');
+      if (previewTransactions.length > 0) {
+        await db.transactions.bulkAdd(previewTransactions);
+      }
+      if (previewSavings.length > 0) {
+        await db.savings.bulkAdd(previewSavings);
+      }
+      const totalCount = previewTransactions.length + previewSavings.length;
+      showToast(
+        `Imported ${totalCount} records (${previewTransactions.length} tx, ${previewSavings.length} savings)`,
+        'success'
+      );
       setImportText('');
       setImportStep('input');
       setPreviewTransactions([]);
+      setPreviewSavings([]);
       setFailedLines([]);
       onFinishImport?.();
     } catch {
@@ -166,8 +178,8 @@ export const ToolsView: React.FC<ToolsViewProps> = ({ transactions, savings = []
   // --- EXPORT STATE ---
   const [copied, setCopied] = useState(false);
   const exportedText = useMemo(() => {
-    return exportTransactionsToText(transactions);
-  }, [transactions]);
+    return exportTransactionsToText(transactions, savings);
+  }, [transactions, savings]);
 
   const handleCopyExport = async () => {
     if (!exportedText) return;
@@ -379,7 +391,7 @@ export const ToolsView: React.FC<ToolsViewProps> = ({ transactions, savings = []
                   <ChevronLeft size={14} /> Back
                 </button>
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                  Valid Records ({previewTransactions.length})
+                  Valid Records ({previewTransactions.length + previewSavings.length})
                 </span>
               </div>
 
@@ -395,8 +407,9 @@ export const ToolsView: React.FC<ToolsViewProps> = ({ transactions, savings = []
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
+                    {/* Transactions */}
                     {previewTransactions.map((t, idx) => (
-                      <tr key={idx} className="hover:bg-white/[0.02]">
+                      <tr key={`tx-${idx}`} className="hover:bg-white/[0.02]">
                         <td className="p-2.5">
                           <span
                             className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${
@@ -420,6 +433,32 @@ export const ToolsView: React.FC<ToolsViewProps> = ({ transactions, savings = []
                         </td>
                         <td className="p-2.5 text-zinc-400 text-[11px] truncate max-w-[120px]">
                           {t.description}
+                        </td>
+                      </tr>
+                    ))}
+
+                    {/* Savings */}
+                    {previewSavings.map((s, idx) => (
+                      <tr key={`sav-${idx}`} className="hover:bg-white/[0.02] bg-violet-500/[0.03]">
+                        <td className="p-2.5">
+                          <span
+                            className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${
+                              s.type === 'DEPOSIT'
+                                ? 'bg-violet-500/20 text-violet-300'
+                                : 'bg-zinc-500/20 text-zinc-300'
+                            }`}
+                          >
+                            {s.type === 'DEPOSIT' ? 'SAV+' : 'SAV-'}
+                          </span>
+                        </td>
+                        <td className="p-2.5 font-bold text-violet-400">
+                          Savings
+                        </td>
+                        <td className="p-2.5 text-right font-black tabular-nums text-violet-300">
+                          {formatCurrency(s.amount)}
+                        </td>
+                        <td className="p-2.5 text-zinc-400 text-[11px] truncate max-w-[120px]">
+                          {s.description || (s.type === 'DEPOSIT' ? 'Deposit' : 'Withdrawal')}
                         </td>
                       </tr>
                     ))}
