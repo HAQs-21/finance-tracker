@@ -23,10 +23,10 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   const isConfigured = !!ghConfig?.token;
 
   const titles: Record<TabType, { title: string; subtitle: string }> = {
-    wallet: { title: 'Wallet', subtitle: 'Cashflow & History' },
-    budgets: { title: 'Budgets', subtitle: 'Spending Limits' },
-    vault: { title: 'Vault', subtitle: 'Savings & Reserves' },
-    tools: { title: 'Tools', subtitle: 'Sync & Data Management' }
+    wallet: { title: 'Wallet', subtitle: 'Income & Spending' },
+    budgets: { title: 'Budgets', subtitle: 'Category Limits' },
+    vault: { title: 'Savings', subtitle: 'Deposit & Withdraw' },
+    tools: { title: 'Tools', subtitle: 'Sync & Data' }
   };
 
   const { title, subtitle } = titles[activeTab];

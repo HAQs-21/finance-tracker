@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useFinance } from '../hooks/useFinance';
 import { Navigation, type TabType } from './Navigation';
 import { AppHeader } from './AppHeader';
@@ -63,6 +63,7 @@ export const Dashboard: React.FC = () => {
           <BudgetsView
             stats={categoryStats}
             budgets={budgets}
+            currentMonth={currentMonth}
             onSetBudget={setBudget}
             onDeleteBudget={deleteBudget}
           />

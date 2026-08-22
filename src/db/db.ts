@@ -13,6 +13,11 @@ export class FinanceDB extends Dexie {
       budgets: 'category, amount',
       savings: '++id, amount, date, type'
     });
+    this.version(4).stores({
+      transactions: '++id, type, category, date',
+      budgets: '++id, category, amount, month, [category+month]',
+      savings: '++id, amount, date, type'
+    });
   }
 }
 

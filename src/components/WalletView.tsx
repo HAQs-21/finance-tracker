@@ -9,8 +9,7 @@ import {
   PiggyBank, 
   ArrowUpRight,
   ArrowDownLeft,
-  Wallet,
-  Sparkles
+  Wallet
 } from 'lucide-react';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { SegmentedControl } from './ui/SegmentedControl';
@@ -205,85 +204,62 @@ export const WalletView: React.FC<WalletViewProps> = ({
     return renderData;
   }, [sortedList, sortType, collapsedDates]);
 
-  // Active numbers
+  // Financial values:
+  // As requested: The top balance is ALWAYS all-time total balance!
+  const totalBalance = lifetimeStats.balance;
   const displayIncome = isAllTime ? lifetimeStats.totalIncome : monthlyStats.totalIncome;
   const displayExpense = isAllTime ? lifetimeStats.totalExpense : monthlyStats.totalExpense;
   const displaySavings = isAllTime ? lifetimeStats.totalSavings : monthlyStats.totalSavings;
-  const displayHeroBalance = isAllTime ? lifetimeStats.balance : monthlyStats.balance;
-  const totalNetWorth = lifetimeStats.totalIncome - lifetimeStats.totalExpense;
 
   return (
     <div className="space-y-4 animate-fade-in">
-      {/* --- SINGLE UNIFIED FINANCIAL SUMMARY CARD --- */}
+      {/* --- SIMPLIFIED FINANCIAL HEADER --- */}
       <section className="bg-gradient-to-b from-[#161224] to-[#0e0c14] p-5 rounded-3xl border border-violet-500/20 shadow-xl shadow-black/40 space-y-4">
-        {/* Top Hero Balance */}
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] font-bold uppercase tracking-wider">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span>{isAllTime ? 'Total Liquid Cash' : 'Remaining Cash This Month'}</span>
-            </div>
-            <div className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-0.5">
-              <AnimatedNumber value={displayHeroBalance} />
-            </div>
+        {/* Top: Balance (Always All-Time Balance) */}
+        <div>
+          <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] font-bold uppercase tracking-wider">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span>Balance</span>
           </div>
-
-          {/* Quick Period Badge */}
-          <div className="px-2.5 py-1 rounded-xl bg-white/[0.04] border border-white/5 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-            {isAllTime ? 'All Time' : currentMonth}
+          <div className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-0.5">
+            <AnimatedNumber value={totalBalance} />
           </div>
         </div>
 
-        {/* 3-Column Unified Breakdown: Earnt, Spent, Saved */}
+        {/* 3 Subordinate Columns: Income, Spending, Savings */}
         <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/5">
-          {/* Earnt */}
-          <div className="p-2.5 rounded-2xl bg-[#101014]/80 border border-emerald-500/15">
-            <div className="flex items-center gap-1 text-emerald-400 text-[9px] font-bold uppercase">
-              <ArrowUpRight size={11} /> Earnt
+          {/* Income */}
+          <div className="p-3 rounded-2xl bg-[#101014]/80 border border-emerald-500/15 flex flex-col justify-between">
+            <div className="flex items-center gap-1 text-emerald-400 text-[10px] font-bold uppercase">
+              <ArrowUpRight size={12} /> Income
             </div>
             <div className="text-xs sm:text-sm font-black text-emerald-400 mt-1 truncate">
               <AnimatedNumber value={displayIncome} />
             </div>
           </div>
 
-          {/* Spent */}
-          <div className="p-2.5 rounded-2xl bg-[#101014]/80 border border-rose-500/15">
-            <div className="flex items-center gap-1 text-rose-400 text-[9px] font-bold uppercase">
-              <ArrowDownLeft size={11} /> Spent
+          {/* Spending */}
+          <div className="p-3 rounded-2xl bg-[#101014]/80 border border-rose-500/15 flex flex-col justify-between">
+            <div className="flex items-center gap-1 text-rose-400 text-[10px] font-bold uppercase">
+              <ArrowDownLeft size={12} /> Spending
             </div>
             <div className="text-xs sm:text-sm font-black text-rose-400 mt-1 truncate">
               <AnimatedNumber value={displayExpense} />
             </div>
           </div>
 
-          {/* Saved */}
+          {/* Savings */}
           <div
             onClick={onOpenVault}
-            className="p-2.5 rounded-2xl bg-[#101014]/80 border border-violet-500/20 cursor-pointer hover:border-violet-500/40 transition-colors pressable"
+            className="p-3 rounded-2xl bg-[#101014]/80 border border-violet-500/20 cursor-pointer hover:border-violet-500/40 transition-colors pressable flex flex-col justify-between"
           >
-            <div className="flex items-center gap-1 text-violet-400 text-[9px] font-bold uppercase">
-              <PiggyBank size={11} /> Saved
+            <div className="flex items-center gap-1 text-violet-400 text-[10px] font-bold uppercase">
+              <PiggyBank size={12} /> Savings
             </div>
             <div className="text-xs sm:text-sm font-black text-violet-300 mt-1 truncate">
               <AnimatedNumber value={displaySavings} />
             </div>
           </div>
-        </div>
-
-        {/* Context Bar: Total Vault & Net Worth */}
-        <div
-          onClick={onOpenVault}
-          className="flex items-center justify-between p-2.5 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-violet-500/20 text-xs cursor-pointer pressable"
-        >
-          <div className="flex items-center gap-2 text-zinc-400 text-[11px] font-bold">
-            <Sparkles size={13} className="text-violet-400" />
-            <span>
-              {isAllTime
-                ? `Total Net Worth: ${formatCurrency(totalNetWorth)}`
-                : `Total in Vault: ${formatCurrency(lifetimeStats.vaultBalance)}`}
-            </span>
-          </div>
-          <span className="text-[10px] font-bold text-violet-400">Vault →</span>
         </div>
       </section>
 

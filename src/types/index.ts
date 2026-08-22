@@ -11,8 +11,10 @@ export interface Transaction {
 }
 
 export interface Budget {
+  id?: number;
   category: string;
   amount: number;
+  month?: string; // e.g. '2026-08' or 'DEFAULT'
 }
 
 export interface SavingsRecord {

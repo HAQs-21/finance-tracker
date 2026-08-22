@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/db';
 import {
@@ -85,10 +85,34 @@ export function useFinance() {
       return await db.savings.delete(id);
     },
     setBudget: async (data: Budget) => {
-      return await db.budgets.put(data);
+      const monthKey = data.month || 'DEFAULT';
+      // Find existing budget for this category and month
+      const existing = await db.budgets
+        .filter((b) => b.category.toLowerCase() === data.category.toLowerCase() && (b.month || 'DEFAULT') === monthKey)
+        .first();
+
+      if (existing && existing.id) {
+        return await db.budgets.update(existing.id, {
+          amount: data.amount,
+          month: monthKey
+        });
+      }
+      return await db.budgets.add({
+        category: data.category.trim(),
+        amount: data.amount,
+        month: monthKey
+      });
     },
-    deleteBudget: async (category: string) => {
-      return await db.budgets.delete(category);
+    deleteBudget: async (category: string, month?: string) => {
+      const monthKey = month || 'DEFAULT';
+      const toDelete = await db.budgets
+        .filter((b) => b.category.toLowerCase() === category.toLowerCase() && (!month || (b.month || 'DEFAULT') === monthKey))
+        .toArray();
+
+      for (const item of toDelete) {
+        if (item.id) await db.budgets.delete(item.id);
+        else await db.budgets.where('category').equals(category).delete();
+      }
     }
   };
 }

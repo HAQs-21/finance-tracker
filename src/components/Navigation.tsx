@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Wallet, Target, PiggyBank, Wrench } from 'lucide-react';
 import { triggerHaptic } from '../hooks/useHaptic';
 
@@ -13,7 +13,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, onChange }) =
   const tabs = [
     { id: 'wallet' as TabType, label: 'Wallet', icon: Wallet },
     { id: 'budgets' as TabType, label: 'Budgets', icon: Target },
-    { id: 'vault' as TabType, label: 'Vault', icon: PiggyBank },
+    { id: 'vault' as TabType, label: 'Savings', icon: PiggyBank },
     { id: 'tools' as TabType, label: 'Tools', icon: Wrench }
   ];
 

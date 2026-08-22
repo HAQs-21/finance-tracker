@@ -1,5 +1,5 @@
 ﻿import React, { useState, useMemo } from 'react';
-import { Plus, X, Edit2, Trash2, Check, AlertTriangle, Target, ChevronDown, CheckCircle2 } from 'lucide-react';
+import { Plus, X, Edit2, Trash2, Check, AlertTriangle, Target, ChevronDown, CheckCircle2, PieChart } from 'lucide-react';
 import { BottomSheet } from './ui/BottomSheet';
 import { Button } from './ui/Button';
 import { PREDEFINED_CATEGORIES, getCategoryIcon } from '../utils/categories';
@@ -10,25 +10,35 @@ import type { CategoryStat, Budget } from '../types';
 interface BudgetsViewProps {
   stats: CategoryStat[];
   budgets: Budget[];
-  currentMonth?: string;
+  currentMonth: string;
   onSetBudget: (data: Budget) => Promise<any>;
-  onDeleteBudget: (category: string) => Promise<any>;
+  onDeleteBudget: (category: string, month?: string) => Promise<any>;
 }
 
 export const BudgetsView: React.FC<BudgetsViewProps> = ({
   stats,
   budgets,
+  currentMonth,
   onSetBudget,
   onDeleteBudget
 }) => {
   const { showToast } = useToast();
+  const isAllTime = currentMonth === 'ALL';
+
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newCategory, setNewCategory] = useState('');
   const [newAmount, setNewAmount] = useState('');
+  const [targetMonth, setTargetMonth] = useState(isAllTime ? new Date().toISOString().slice(0, 7) : currentMonth);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState('');
   const [showUnbudgeted, setShowUnbudgeted] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Filter budgets relevant to the current month or default
+  const activeMonthBudgets = useMemo(() => {
+    if (isAllTime) return budgets;
+    return budgets.filter((b) => !b.month || b.month === 'DEFAULT' || b.month === currentMonth);
+  }, [budgets, currentMonth, isAllTime]);
 
   // Map spending by normalized category name
   const spendMap = useMemo(() => {
@@ -39,12 +49,12 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
     return map;
   }, [stats]);
 
-  // Budget calculations
+  // Budget calculations for specific month
   const budgetCalculations = useMemo(() => {
     let totalBudget = 0;
     let totalSpentInBudgeted = 0;
 
-    const budgetedCategories = budgets.map((b) => {
+    const budgetedCategories = activeMonthBudgets.map((b) => {
       const spent = spendMap.get(b.category.trim().toLowerCase()) || 0;
       totalBudget += b.amount;
       totalSpentInBudgeted += spent;
@@ -61,12 +71,13 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
         ratio,
         percentage,
         isOver,
-        remaining
+        remaining,
+        month: b.month
       };
     });
 
     // Unbudgeted spending categories
-    const budgetedNames = new Set(budgets.map((b) => b.category.trim().toLowerCase()));
+    const budgetedNames = new Set(activeMonthBudgets.map((b) => b.category.trim().toLowerCase()));
     const unbudgetedCategories = stats.filter(
       (s) => !budgetedNames.has(s.category.trim().toLowerCase())
     );
@@ -84,13 +95,13 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
       overallRatio,
       overallRemaining
     };
-  }, [budgets, stats, spendMap]);
+  }, [activeMonthBudgets, stats, spendMap]);
 
   // Quick categories that do not have a budget limit yet
   const availableQuickCategories = useMemo(() => {
-    const budgetedNames = new Set(budgets.map((b) => b.category.trim().toLowerCase()));
+    const budgetedNames = new Set(activeMonthBudgets.map((b) => b.category.trim().toLowerCase()));
     return PREDEFINED_CATEGORIES.filter((c) => !budgetedNames.has(c.name.toLowerCase()));
-  }, [budgets]);
+  }, [activeMonthBudgets]);
 
   const handleStartEdit = (category: string, currentBudget: number) => {
     setEditingCategory(category);
@@ -101,10 +112,14 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
     const amount = parseFloat(editAmount);
     try {
       if (isNaN(amount) || amount <= 0) {
-        await onDeleteBudget(category);
+        await onDeleteBudget(category, isAllTime ? undefined : currentMonth);
         showToast(`Limit removed for ${category}`, 'info');
       } else {
-        await onSetBudget({ category, amount });
+        await onSetBudget({ 
+          category, 
+          amount, 
+          month: isAllTime ? 'DEFAULT' : currentMonth 
+        });
         showToast(`Limit updated for ${category}`, 'success');
       }
     } catch {
@@ -116,7 +131,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
   const handleDeleteBudget = async (category: string) => {
     if (window.confirm(`Remove budget limit for "${category}"?`)) {
       try {
-        await onDeleteBudget(category);
+        await onDeleteBudget(category, isAllTime ? undefined : currentMonth);
         showToast(`Budget limit removed`, 'success');
       } catch {
         showToast('Failed to remove limit', 'error');
@@ -140,7 +155,11 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
 
     setLoading(true);
     try {
-      await onSetBudget({ category: trimmedCat, amount });
+      await onSetBudget({ 
+        category: trimmedCat, 
+        amount, 
+        month: targetMonth || (isAllTime ? 'DEFAULT' : currentMonth)
+      });
       showToast(`Budget limit set for ${trimmedCat}`, 'success');
       setNewCategory('');
       setNewAmount('');
@@ -162,15 +181,91 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
     overallRemaining
   } = budgetCalculations;
 
+  // --- ALL-TIME EXPENSES VIEW ---
+  if (isAllTime) {
+    const totalLifetimeSpend = stats.reduce((sum, s) => sum + s.amount, 0);
+
+    return (
+      <div className="space-y-4 animate-fade-in pb-4">
+        {/* Header */}
+        <div className="p-5 rounded-3xl bg-gradient-to-b from-[#181226] to-[#0e0c14] border border-violet-500/20 shadow-xl shadow-black/40 space-y-2">
+          <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+            Lifetime Spending
+          </div>
+          <div className="text-3xl font-black text-white tabular-nums">
+            {formatCurrency(totalLifetimeSpend)}
+          </div>
+          <p className="text-[10px] text-zinc-500 font-medium">
+            Showing all categories and spending across all time. Select a specific month in header to set and track monthly budget limits.
+          </p>
+        </div>
+
+        <div className="flex items-center justify-between px-1 pt-1">
+          <h2 className="text-xs font-black text-white uppercase tracking-wider">All Categories</h2>
+          <span className="text-[10px] font-bold text-zinc-500">{stats.length} categories</span>
+        </div>
+
+        {/* Bold Category Expenses List */}
+        <div className="space-y-2.5">
+          {stats.length === 0 ? (
+            <div className="p-8 text-center bg-[#101014] rounded-2xl border border-white/5 space-y-2">
+              <div className="w-10 h-10 rounded-full bg-white/5 text-zinc-500 flex items-center justify-center mx-auto">
+                <PieChart size={18} />
+              </div>
+              <div className="text-xs font-bold text-zinc-300">No expenses recorded</div>
+            </div>
+          ) : (
+            stats.map((item) => {
+              const Icon = getCategoryIcon(item.category);
+              return (
+                <div
+                  key={item.category}
+                  className="p-4 rounded-2xl bg-[#101014] border border-white/5 space-y-2.5"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <div className="w-9 h-9 rounded-xl bg-white/5 text-zinc-300 flex items-center justify-center shrink-0">
+                        <Icon size={16} />
+                      </div>
+                      <div className="truncate">
+                        <div className="text-sm font-black text-white truncate">{item.category}</div>
+                        <div className="text-[10px] font-bold text-zinc-500 mt-0.5">
+                          {item.percentage.toFixed(1)}% of total expenses
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-base font-black text-zinc-100 tabular-nums shrink-0 ml-3">
+                      {formatCurrency(item.amount)}
+                    </div>
+                  </div>
+
+                  {/* Share Bar */}
+                  <div className="w-full h-1.5 rounded-full bg-[#16161c] overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary"
+                      style={{ width: `${Math.max(item.percentage, 2)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // --- MONTHLY BUDGETS VIEW ---
   return (
     <div className="space-y-4 animate-fade-in pb-4">
-      {/* --- OVERALL MONTHLY BUDGET HERO CARD --- */}
-      {totalBudget > 0 ? (
+      {/* Overall Monthly Budget Hero Card */}
+      {totalBudget > 0 && (
         <section className="p-5 rounded-3xl bg-gradient-to-b from-[#181226] to-[#0e0c14] border border-violet-500/20 shadow-xl shadow-black/40 space-y-3.5">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                Total Budget
+                Monthly Budget
               </div>
               <div className="text-2xl font-black text-white mt-0.5 tabular-nums">
                 {formatCurrency(totalBudget)}
@@ -211,14 +306,14 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
             </div>
           </div>
         </section>
-      ) : null}
+      )}
 
       {/* Header & Add Button */}
       <div className="flex items-center justify-between px-1">
         <div>
           <h2 className="text-xs font-black text-white uppercase tracking-wider">Category Limits</h2>
           <p className="text-[10px] font-bold text-zinc-500 mt-0.5">
-            {budgets.length} {budgets.length === 1 ? 'category limit' : 'category limits'}
+            {budgetedCategories.length} {budgetedCategories.length === 1 ? 'limit active' : 'limits active'}
           </p>
         </div>
 
@@ -226,7 +321,10 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
           variant="primary"
           size="sm"
           icon={<Plus size={13} />}
-          onClick={() => setIsAddOpen(true)}
+          onClick={() => {
+            setTargetMonth(currentMonth);
+            setIsAddOpen(true);
+          }}
         >
           Add Limit
         </Button>
@@ -239,7 +337,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
             <div className="w-10 h-10 rounded-full bg-white/5 text-zinc-500 flex items-center justify-center mx-auto">
               <Target size={18} />
             </div>
-            <div className="text-xs font-bold text-zinc-300">No category limits set</div>
+            <div className="text-xs font-bold text-zinc-300">No category limits set for this month</div>
             <p className="text-[10px] text-zinc-500">
               Tap "Add Limit" to set spending targets for Food, Rent, Shopping, etc.
             </p>
@@ -399,6 +497,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
                       <button
                         onClick={() => {
                           setNewCategory(s.category);
+                          setTargetMonth(currentMonth);
                           setIsAddOpen(true);
                         }}
                         className="text-[9px] font-bold text-primary hover:text-primary-hover px-2 py-1 rounded-lg bg-primary/10 cursor-pointer"
@@ -456,6 +555,18 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
               value={newCategory}
               onChange={(e) => setNewCategory(e.target.value)}
               className="w-full bg-[#16161c] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">
+              Target Month
+            </label>
+            <input
+              type="month"
+              value={targetMonth}
+              onChange={(e) => setTargetMonth(e.target.value)}
+              className="w-full bg-[#16161c] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none [color-scheme:dark]"
             />
           </div>
 
