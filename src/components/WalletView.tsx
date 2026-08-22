@@ -206,8 +206,8 @@ export const WalletView: React.FC<WalletViewProps> = ({
   }, [sortedList, sortType, collapsedDates]);
 
   // Financial values:
+  const balance = lifetimeStats.balance;
   const totalCash = lifetimeStats.totalCash;
-  const inHandCash = lifetimeStats.balance;
   const displayIncome = isAllTime ? lifetimeStats.totalIncome : monthlyStats.totalIncome;
   const displayExpense = isAllTime ? lifetimeStats.totalExpense : monthlyStats.totalExpense;
   const displaySavings = isAllTime ? lifetimeStats.totalSavings : monthlyStats.totalSavings;
@@ -217,22 +217,22 @@ export const WalletView: React.FC<WalletViewProps> = ({
     <div className="space-y-4 animate-fade-in">
       {/* --- SIMPLIFIED FINANCIAL HEADER --- */}
       <section className="bg-gradient-to-b from-[#1b152d] via-[#120e20] to-[#0a0812] p-5 rounded-3xl border border-violet-500/30 shadow-2xl shadow-violet-950/30 space-y-4">
-        {/* Top: Total Cash (Prominent, High-Contrast Hero Number) */}
+        {/* Top: Balance & Total Cash */}
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-1.5 text-zinc-300 text-[10px] font-black uppercase tracking-wider">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Total Cash</span>
+              <span>Balance</span>
             </div>
             <div className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-1 drop-shadow-md">
-              <AnimatedNumber value={totalCash} />
+              <AnimatedNumber value={balance} />
             </div>
           </div>
 
-          <div className="text-right bg-white/[0.04] border border-white/10 px-3 py-1.5 rounded-2xl">
-            <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">In Hand</div>
-            <div className="text-xs sm:text-sm font-black text-zinc-200 tabular-nums mt-0.5">
-              {formatCurrency(inHandCash)}
+          <div className="text-right bg-white/[0.05] border border-white/10 px-3.5 py-2 rounded-2xl">
+            <div className="text-[9px] font-black text-zinc-400 uppercase tracking-wider">Total Cash</div>
+            <div className="text-sm sm:text-base font-black text-emerald-400 tabular-nums mt-0.5">
+              {formatCurrency(totalCash)}
             </div>
           </div>
         </div>
@@ -275,7 +275,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
           {/* Tax */}
           <div className="p-3 rounded-2xl bg-[#101014]/90 border border-amber-500/25 flex flex-col justify-between">
             <div className="flex items-center gap-1 text-amber-400 text-[10px] font-bold uppercase">
-              <Landmark size={12} /> Tax Paid
+              <Landmark size={12} /> Tax
             </div>
             <div className="text-xs sm:text-sm font-black text-amber-300 mt-1 truncate">
               <AnimatedNumber value={displayTax} />

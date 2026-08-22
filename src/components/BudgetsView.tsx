@@ -239,7 +239,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
                 <Landmark size={16} />
               </div>
               <div>
-                <div className="text-xs font-black text-white uppercase tracking-wider">Tax Paid</div>
+                <div className="text-xs font-black text-white uppercase tracking-wider">Tax</div>
                 <div className="text-[10px] text-zinc-400 font-medium">Total recorded tax payments</div>
               </div>
             </div>
