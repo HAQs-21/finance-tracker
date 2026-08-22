@@ -79,9 +79,9 @@ export const TransactionDetailsModal: React.FC<TransactionDetailsModalProps> = (
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || isNaN(Number(amount)) || !date) return;
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0 || !date || !transaction.id) return;
 
-    await db.transactions.update(transaction.id!, {
+    await db.transactions.update(transaction.id, {
       amount: Math.abs(Number(amount)),
       type,
       category: type === 'INCOME' ? 'Income' : (category.trim() || 'General'),

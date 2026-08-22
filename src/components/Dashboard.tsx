@@ -41,16 +41,22 @@ export const Dashboard: React.FC = () => {
     []
   ) ?? [];
 
-  const lifetimeStats = useMemo(() => calculateOverallStats(transactions), [transactions]);
-  const monthlyStats = useMemo(() => calculateMonthlyStats(transactions, currentMonth), [transactions, currentMonth]);
+  const savingsRecords = useLiveQuery(
+    () => db.savings.orderBy('date').reverse().toArray(),
+    []
+  ) ?? [];
+
+  const lifetimeStats = useMemo(() => calculateOverallStats(transactions, savingsRecords), [transactions, savingsRecords]);
+  const monthlyStats = useMemo(() => calculateMonthlyStats(transactions, savingsRecords, currentMonth), [transactions, savingsRecords, currentMonth]);
   const categoryStats = useMemo(() => calculateCategoryDistribution(transactions, currentMonth), [transactions, currentMonth]);
 
   const availableMonths = useMemo(() => {
     const currentRealMonth = new Date().toISOString().slice(0, 7);
     const months = new Set(transactions.map(t => t.date.slice(0, 7)));
+    savingsRecords.forEach(s => months.add(s.date.slice(0, 7)));
     months.add(currentRealMonth);
     return Array.from(months).sort((a, b) => b.localeCompare(a));
-  }, [transactions]);
+  }, [transactions, savingsRecords]);
 
   const [isFeedReady, setIsFeedReady] = useState(false);
   
@@ -98,19 +104,33 @@ export const Dashboard: React.FC = () => {
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-3 duration-250">
             {/* Monthly Balance Card */}
             <section className="bg-gradient-to-br from-[#1E1E1E] to-[#141414] p-6 rounded-2xl border border-white/10 relative overflow-hidden">
-              <div className="absolute -top-4 -right-4 p-8 opacity-5 text-white">
+              <div className="absolute -top-4 -right-4 p-8 opacity-5 text-white pointer-events-none">
                 <Wallet size={120} />
               </div>
-              <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-1">
-                {currentMonth === 'ALL' ? 'All Time Balance' : 'Monthly Balance'}
-              </p>
-              <div className="text-4xl font-black text-white tracking-tighter">
-                {formatCurrency(monthlyStats.balance)}
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-1">
+                    {currentMonth === 'ALL' ? 'All Time Balance' : 'Monthly Wallet Balance'}
+                  </p>
+                  <div className="text-3xl sm:text-4xl font-black text-white tracking-tighter">
+                    {formatCurrency(monthlyStats.balance)}
+                  </div>
+                </div>
+                {lifetimeStats.vaultBalance > 0 && (
+                  <div 
+                    onClick={() => setActiveTab('vault')}
+                    className="cursor-pointer px-3 py-1.5 rounded-xl bg-violet-500/10 border border-violet-500/20 text-violet-300 text-xs font-bold flex items-center gap-1.5 hover:bg-violet-500/20 transition-colors btn-pop"
+                    title="Open Savings Vault"
+                  >
+                    <PiggyBank size={14} className="text-violet-400" />
+                    <span>Vault: {formatCurrency(lifetimeStats.vaultBalance)}</span>
+                  </div>
+                )}
               </div>
             </section>
 
-            {/* Income & Expense Summary Cards */}
-            <section className="grid grid-cols-2 gap-4">
+            {/* Income, Expense & Savings Summary Cards (3 Columns) */}
+            <section className="grid grid-cols-3 gap-2.5">
               <SummaryCard 
                 title="Income" 
                 value={monthlyStats.totalIncome} 
@@ -123,21 +143,31 @@ export const Dashboard: React.FC = () => {
                 type="expense" 
                 icon={<TrendingDown size={14} />}
               />
+              <SummaryCard 
+                title="Savings" 
+                value={monthlyStats.totalSavings} 
+                type="savings" 
+                icon={<PiggyBank size={14} />}
+              />
             </section>
 
             {/* Lifetime Summary Stats Grid */}
-            <section className="grid grid-cols-3 gap-2 bg-[#1E1E1E] p-3.5 rounded-xl border border-white/5">
-              <div className="text-center border-r border-white/5">
-                <div className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Life Bal</div>
-                <div className="text-xs font-black text-zinc-200 mt-0.5">{formatCurrency(lifetimeStats.balance)}</div>
+            <section className="grid grid-cols-4 gap-1.5 bg-[#1E1E1E] p-3 rounded-xl border border-white/5">
+              <div className="text-center border-r border-white/5 pr-1">
+                <div className="text-[8px] sm:text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Life Bal</div>
+                <div className="text-[11px] sm:text-xs font-black text-zinc-200 mt-0.5 truncate">{formatCurrency(lifetimeStats.balance)}</div>
               </div>
-              <div className="text-center border-r border-white/5">
-                <div className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Life Inc</div>
-                <div className="text-xs font-black text-emerald-400 mt-0.5">{formatCurrency(lifetimeStats.totalIncome)}</div>
+              <div className="text-center border-r border-white/5 pr-1">
+                <div className="text-[8px] sm:text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Life Inc</div>
+                <div className="text-[11px] sm:text-xs font-black text-emerald-400 mt-0.5 truncate">{formatCurrency(lifetimeStats.totalIncome)}</div>
+              </div>
+              <div className="text-center border-r border-white/5 pr-1">
+                <div className="text-[8px] sm:text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Life Exp</div>
+                <div className="text-[11px] sm:text-xs font-black text-rose-400 mt-0.5 truncate">{formatCurrency(lifetimeStats.totalExpense)}</div>
               </div>
               <div className="text-center">
-                <div className="text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Life Exp</div>
-                <div className="text-xs font-black text-rose-400 mt-0.5">{formatCurrency(lifetimeStats.totalExpense)}</div>
+                <div className="text-[8px] sm:text-[9px] font-bold text-zinc-500 uppercase tracking-wider">Vault Bal</div>
+                <div className="text-[11px] sm:text-xs font-black text-violet-400 mt-0.5 truncate">{formatCurrency(lifetimeStats.vaultBalance)}</div>
               </div>
             </section>
 

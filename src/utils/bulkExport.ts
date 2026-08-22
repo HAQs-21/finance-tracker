@@ -1,10 +1,12 @@
 import type { Transaction } from '../types';
+import { isPureTransaction } from '../db/financeUtils';
 
 export function exportTransactionsToText(transactions: Transaction[]): string {
-  if (transactions.length === 0) return '';
+  const validTransactions = transactions.filter(isPureTransaction);
+  if (validTransactions.length === 0) return '';
 
   // Sort by date ascending (oldest first)
-  const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = [...validTransactions].sort((a, b) => a.date.localeCompare(b.date));
   
   // Group by year and month
   const groups: Record<string, Transaction[]> = {};

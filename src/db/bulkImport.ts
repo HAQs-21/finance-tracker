@@ -26,7 +26,7 @@ export interface ParseResult {
 export async function parseTextToPreview(rawText: string): Promise<ParseResult> {
   const sanitized = sanitizeText(rawText);
   const lines = sanitized.split(/\r?\n/);
-  const currentYear = new Date().getFullYear();
+  let currentYear = new Date().getFullYear();
   let currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
   
   const transactions: Transaction[] = [];
@@ -38,13 +38,16 @@ export async function parseTextToPreview(rawText: string): Promise<ParseResult> 
 
     const lowerLine = trimmed.toLowerCase();
 
-    // Pattern: Month (IncomeExpression)
-    const monthIncomeMatch = trimmed.match(/^(\w+)\s*\(([\d+k.\s]+)\)/i);
+    // Pattern: Month [Year] (IncomeExpression) e.g. "January 2025 (80k+10k)" or "January (80k+10k)"
+    const monthIncomeMatch = trimmed.match(/^([a-zA-Z]+)(?:\s+(\d{4}))?\s*\(([\d+k.\s]+)\)/i);
     if (monthIncomeMatch) {
       const monthName = monthIncomeMatch[1].toLowerCase();
       if (MONTHS[monthName]) {
         currentMonth = MONTHS[monthName];
-        const expression = monthIncomeMatch[2];
+        if (monthIncomeMatch[2]) {
+          currentYear = parseInt(monthIncomeMatch[2], 10);
+        }
+        const expression = monthIncomeMatch[3];
         const parts = expression.split('+');
         parts.forEach(part => {
           const amount = parseVal(part);
@@ -62,10 +65,27 @@ export async function parseTextToPreview(rawText: string): Promise<ParseResult> 
       }
     }
 
-    // Pattern: Simple Month Header
+    // Pattern: Simple Month Header, e.g. "January 2025" or "February"
+    const monthHeaderMatch = trimmed.match(/^([a-zA-Z]+)(?:\s+(\d{4}))?$/i);
+    if (monthHeaderMatch) {
+      const monthName = monthHeaderMatch[1].toLowerCase();
+      if (MONTHS[monthName]) {
+        currentMonth = MONTHS[monthName];
+        if (monthHeaderMatch[2]) {
+          currentYear = parseInt(monthHeaderMatch[2], 10);
+        }
+        continue;
+      }
+    }
+
+    // Check if line is a general month start
     const monthMatch = Object.keys(MONTHS).find(m => lowerLine.startsWith(m));
-    if (monthMatch) {
+    if (monthMatch && !lowerLine.match(/\d+k?\s+[a-zA-Z]/)) {
       currentMonth = MONTHS[monthMatch];
+      const yearMatch = trimmed.match(/\b(20\d{2})\b/);
+      if (yearMatch) {
+        currentYear = parseInt(yearMatch[1], 10);
+      }
       continue;
     }
 
@@ -89,8 +109,8 @@ export async function parseTextToPreview(rawText: string): Promise<ParseResult> 
         amount = parseVal(bracketMatch[1]);
         description = trimmed;
       } else {
-        // Standard rule: Amount Description
-        const standardMatch = trimmed.match(/^[\s\W]*(\d+(?:\.\d+)?k?)\s+(.+)$/i);
+        // Standard rule: [Optional bullets -*•#>] Amount Description
+        const standardMatch = trimmed.match(/^[\s\-*•#>]*(\d+(?:\.\d+)?k?)\s+(.+)$/i);
         if (standardMatch) {
           amount = parseVal(standardMatch[1]);
           description = standardMatch[2];

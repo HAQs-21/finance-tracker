@@ -26,7 +26,9 @@ export interface SavingsRecord {
 export interface SummaryStats {
   totalIncome: number;
   totalExpense: number;
+  totalSavings: number;
   balance: number;
+  vaultBalance: number;
 }
 
 export interface CategoryStat {

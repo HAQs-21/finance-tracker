@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, memo } from 'react';
 import type { Transaction } from '../types';
 import { Search, ChevronDown, ChevronRight, ArrowUpDown } from 'lucide-react';
-import { formatCurrency } from '../db/financeUtils';
+import { formatCurrency, isPureTransaction } from '../db/financeUtils';
 import { Virtuoso } from 'react-virtuoso';
 import { getCategoryIcon } from '../utils/categories';
 
@@ -73,6 +73,7 @@ export const TransactionFeed: React.FC<TransactionFeedProps> = ({ transactions, 
 
   const filtered = useMemo(() => {
     return transactions.filter(t => {
+      if (!isPureTransaction(t)) return false;
       if (currentMonth !== 'ALL' && !t.date.startsWith(currentMonth)) return false;
       if (typeFilter !== 'ALL' && t.type !== typeFilter) return false;
       if (search && !t.description.toLowerCase().includes(search.toLowerCase()) && !t.category.toLowerCase().includes(search.toLowerCase())) return false;

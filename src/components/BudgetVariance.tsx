@@ -63,11 +63,12 @@ export const BudgetVariance: React.FC<BudgetVarianceProps> = ({ stats }) => {
 
   const handleAddBudgetSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newCategory || !newAmount || isNaN(parseFloat(newAmount))) return;
+    const trimmedCat = newCategory.trim();
+    if (!trimmedCat || !newAmount || isNaN(parseFloat(newAmount))) return;
     
     const amount = parseFloat(newAmount);
     if (amount > 0) {
-      await db.budgets.put({ category: newCategory, amount });
+      await db.budgets.put({ category: trimmedCat, amount });
     }
     
     setNewCategory('');

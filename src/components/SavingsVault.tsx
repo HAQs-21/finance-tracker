@@ -21,33 +21,41 @@ export const SavingsVault: React.FC = () => {
     }, 0);
   }, [savingsRecords]);
 
+  // One-time cleanup of legacy transactions that were duplicated from savings
+  React.useEffect(() => {
+    const cleanupLegacyTransactions = async () => {
+      try {
+        const legacyTx = await db.transactions
+          .filter(tx => tx.category.toLowerCase() === 'savings' || !!tx.savingsRecordId)
+          .toArray();
+        if (legacyTx.length > 0) {
+          const idsToDelete = legacyTx.map(t => t.id).filter((id): id is number => id !== undefined);
+          await db.transactions.bulkDelete(idsToDelete);
+        }
+      } catch (err) {
+        console.error('Legacy savings cleanup error:', err);
+      }
+    };
+    cleanupLegacyTransactions();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0 || !date) return;
 
     const numAmount = Number(amount);
     if (type === 'WITHDRAW' && numAmount > balance) {
-      alert("Insufficient savings balance!");
+      alert("Insufficient savings balance in vault!");
       return;
     }
 
     const desc = description.trim() || (type === 'DEPOSIT' ? 'Deposit to Savings' : 'Withdrawal from Savings');
 
-    const savingsRecordId = await db.savings.add({
+    await db.savings.add({
       amount: numAmount,
       type,
       date,
       description: desc
-    });
-
-    // Add matching transaction to Wallet to deduct/add money
-    await db.transactions.add({
-      amount: numAmount,
-      type: type === 'DEPOSIT' ? 'EXPENSE' : 'INCOME', // Deposit = expense from wallet, Withdraw = income to wallet
-      category: 'Savings',
-      description: desc,
-      date,
-      savingsRecordId: savingsRecordId as number
     });
 
     setAmount('');
@@ -56,17 +64,8 @@ export const SavingsVault: React.FC = () => {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm('Delete this savings log? This will also revert the wallet balance transfer transaction.')) {
-      await db.transaction('rw', [db.savings, db.transactions], async () => {
-        await db.savings.delete(id);
-        // Find and delete matching transactions
-        const matchingTx = await db.transactions.filter(tx => tx.savingsRecordId === id).toArray();
-        for (const tx of matchingTx) {
-          if (tx.id) {
-            await db.transactions.delete(tx.id);
-          }
-        }
-      });
+    if (window.confirm('Delete this savings log?')) {
+      await db.savings.delete(id);
     }
   };
 

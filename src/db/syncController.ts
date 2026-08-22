@@ -1,6 +1,7 @@
 import { db } from './db';
 import { fetchFromGitHub, pushToGitHub } from '../services/githubSync';
 import type { Transaction, Budget, SavingsRecord } from '../types';
+import { isPureTransaction } from './financeUtils';
 
 const SHA_KEY = 'finance_tracker_remote_sha';
 
@@ -16,15 +17,20 @@ export async function syncPull() {
     // Legacy format
     remoteTransactions = remote.content;
   } else if (remote.content && typeof remote.content === 'object') {
-    // New multi-table format
+    // Multi-table format
     remoteTransactions = remote.content.transactions || [];
     remoteBudgets = remote.content.budgets || [];
     remoteSavings = remote.content.savings || [];
   }
 
+  // Filter out any legacy savings duplicate records from transactions
+  const cleanTransactions = remoteTransactions.filter(isPureTransaction);
+
   await db.transaction('rw', [db.transactions, db.budgets, db.savings], async () => {
     await db.transactions.clear();
-    await db.transactions.bulkAdd(remoteTransactions);
+    if (cleanTransactions.length > 0) {
+      await db.transactions.bulkAdd(cleanTransactions);
+    }
 
     await db.budgets.clear();
     if (remoteBudgets.length > 0) {
@@ -37,7 +43,9 @@ export async function syncPull() {
     }
   });
 
-  localStorage.setItem(SHA_KEY, remote.sha);
+  if (remote.sha) {
+    localStorage.setItem(SHA_KEY, remote.sha);
+  }
 }
 
 export async function syncPush() {
@@ -47,13 +55,15 @@ export async function syncPush() {
   const currentSha = localStorage.getItem(SHA_KEY) || '';
   
   const payload = {
-    transactions,
+    transactions: transactions.filter(isPureTransaction),
     budgets,
     savings
   };
   
   const newSha = await pushToGitHub(payload, currentSha);
-  localStorage.setItem(SHA_KEY, newSha);
+  if (newSha) {
+    localStorage.setItem(SHA_KEY, newSha);
+  }
 }
 
 export async function syncDatabase() {

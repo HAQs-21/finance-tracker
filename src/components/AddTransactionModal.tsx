@@ -20,7 +20,7 @@ export const AddTransactionModal: React.FC<AddTransactionModalProps> = ({ isOpen
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || isNaN(Number(amount)) || !date) return;
+    if (!amount || isNaN(Number(amount)) || Number(amount) <= 0 || !date) return;
 
     await db.transactions.add({
       amount: Math.abs(Number(amount)),
