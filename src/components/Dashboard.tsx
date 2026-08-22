@@ -81,6 +81,7 @@ export const Dashboard: React.FC = () => {
         {activeTab === 'tools' && (
           <ToolsView
             transactions={transactions}
+            savings={savings}
             onFinishImport={() => setActiveTab('wallet')}
           />
         )}

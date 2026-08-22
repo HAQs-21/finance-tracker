@@ -26,18 +26,20 @@ import { syncDatabase, syncPush } from '../db/syncController';
 import { db } from '../db/db';
 import { parseTextToPreview } from '../db/bulkImport';
 import { exportTransactionsToText } from '../utils/bulkExport';
+import { exportToExcel } from '../utils/excelExport';
 import { formatCurrency } from '../db/financeUtils';
 import { useToast } from '../context/ToastContext';
-import type { Transaction } from '../types';
+import type { Transaction, SavingsRecord } from '../types';
 
 interface ToolsViewProps {
   transactions: Transaction[];
+  savings?: SavingsRecord[];
   onFinishImport?: () => void;
 }
 
 type ToolSection = 'sync' | 'import' | 'export';
 
-export const ToolsView: React.FC<ToolsViewProps> = ({ transactions, onFinishImport }) => {
+export const ToolsView: React.FC<ToolsViewProps> = ({ transactions, savings = [], onFinishImport }) => {
   const { showToast } = useToast();
   const [section, setSection] = useState<ToolSection>('sync');
 
@@ -190,7 +192,20 @@ export const ToolsView: React.FC<ToolsViewProps> = ({ transactions, onFinishImpo
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    showToast('Download started', 'info');
+    showToast('Text export downloaded', 'info');
+  };
+
+  const handleDownloadExcel = () => {
+    if (transactions.length === 0 && savings.length === 0) {
+      showToast('No data to export', 'error');
+      return;
+    }
+    try {
+      exportToExcel(transactions, savings);
+      showToast('Excel workbook exported', 'success');
+    } catch {
+      showToast('Failed to export Excel file', 'error');
+    }
   };
 
   return (
@@ -332,12 +347,12 @@ export const ToolsView: React.FC<ToolsViewProps> = ({ transactions, onFinishImpo
               <div className="p-3.5 rounded-2xl bg-[#101014] border border-white/5 space-y-2">
                 <div className="text-xs font-black text-white uppercase tracking-wider">Paste Notepad Text</div>
                 <p className="text-[10px] text-zinc-500 font-medium leading-relaxed">
-                  Supports month headers e.g. <code className="text-primary">January 2025 (80k+10k)</code> and lines like <code className="text-zinc-300">5k Rent</code>, <code className="text-zinc-300">1200 Groceries</code>, <code className="text-zinc-300">• 400 Coffee</code>.
+                  Supports month headers e.g. <code className="text-primary">January 2026 (80k+10k)</code> and lines like <code className="text-zinc-300">5k Rent [Rent]</code>, <code className="text-zinc-300">1200 Pizza [Food]</code>, or auto-categorized <code className="text-zinc-300">1200 Pizza</code>.
                 </p>
                 <textarea
                   value={importText}
                   onChange={(e) => setImportText(e.target.value)}
-                  placeholder="January 2025 (80k+10k)&#10;5k Rent&#10;1200 Groceries&#10;• 400 Coffee"
+                  placeholder="January 2026 (80k+10k)&#10;5k Rent [Rent]&#10;1200 Pizza [Food]&#10;300 Coffee"
                   className="w-full h-44 bg-[#16161c] border border-white/10 rounded-xl p-3 text-xs font-mono text-zinc-200 outline-none resize-none leading-relaxed"
                 />
               </div>
@@ -374,6 +389,7 @@ export const ToolsView: React.FC<ToolsViewProps> = ({ transactions, onFinishImpo
                   <thead className="sticky top-0 bg-[#16161c] text-zinc-400 text-[9px] uppercase tracking-wider border-b border-white/5">
                     <tr>
                       <th className="p-2.5">Type</th>
+                      <th className="p-2.5">Category</th>
                       <th className="p-2.5 text-right">Amount</th>
                       <th className="p-2.5">Description</th>
                     </tr>
@@ -391,6 +407,9 @@ export const ToolsView: React.FC<ToolsViewProps> = ({ transactions, onFinishImpo
                           >
                             {t.type === 'INCOME' ? 'INC' : 'EXP'}
                           </span>
+                        </td>
+                        <td className="p-2.5 font-bold text-zinc-300">
+                          {t.category}
                         </td>
                         <td
                           className={`p-2.5 text-right font-black tabular-nums ${
@@ -443,7 +462,7 @@ export const ToolsView: React.FC<ToolsViewProps> = ({ transactions, onFinishImpo
         <div className="space-y-4 animate-fade-in">
           <div className="p-3.5 rounded-2xl bg-[#101014] border border-white/5 space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="text-xs font-black text-white uppercase tracking-wider">Notepad Export Preview</h3>
+              <h3 className="text-xs font-black text-white uppercase tracking-wider">Export Preview</h3>
               <span className="text-[10px] text-zinc-500 font-bold">{transactions.length} entries</span>
             </div>
             <textarea
@@ -454,26 +473,39 @@ export const ToolsView: React.FC<ToolsViewProps> = ({ transactions, onFinishImpo
             />
           </div>
 
-          <div className="flex gap-2.5">
-            <Button
-              variant="secondary"
-              size="md"
-              icon={copied ? <Check size={14} className="text-emerald-400" /> : <Clipboard size={14} />}
-              onClick={handleCopyExport}
-              disabled={!exportedText}
-              className="flex-1"
-            >
-              {copied ? 'Copied!' : 'Copy'}
-            </Button>
+          <div className="space-y-2">
+            <div className="flex gap-2.5">
+              <Button
+                variant="secondary"
+                size="md"
+                icon={copied ? <Check size={14} className="text-emerald-400" /> : <Clipboard size={14} />}
+                onClick={handleCopyExport}
+                disabled={!exportedText}
+                className="flex-1"
+              >
+                {copied ? 'Copied!' : 'Copy Text'}
+              </Button>
+              <Button
+                variant="secondary"
+                size="md"
+                icon={<FileDown size={14} />}
+                onClick={handleDownloadFile}
+                disabled={!exportedText}
+                className="flex-1"
+              >
+                Download .txt
+              </Button>
+            </div>
+
             <Button
               variant="primary"
               size="md"
               icon={<FileDown size={14} />}
-              onClick={handleDownloadFile}
-              disabled={!exportedText}
-              className="flex-1"
+              onClick={handleDownloadExcel}
+              disabled={transactions.length === 0 && savings.length === 0}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-950/40 border-emerald-500/40"
             >
-              Download .txt
+              Export Excel (.xlsx) with Formulas
             </Button>
           </div>
         </div>

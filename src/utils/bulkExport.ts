@@ -24,11 +24,12 @@ export function exportTransactionsToText(transactions: Transaction[]): string {
   let output = "";
   
   const keys = Object.keys(groups).sort((a, b) => a.localeCompare(b));
-  keys.forEach(key => {
+  keys.forEach((key, index) => {
     const [year, month] = key.split('-');
     const monthIndex = parseInt(month, 10) - 1;
     const monthName = monthNames[monthIndex] || month;
     
+    if (index > 0) output += "\n\n";
     output += `${monthName} ${year}\n`;
     
     const incomes = groups[key].filter(t => t.type === 'INCOME');
@@ -36,7 +37,6 @@ export function exportTransactionsToText(transactions: Transaction[]): string {
     
     if (incomes.length > 0) {
       const incomeExpressions = incomes.map(t => {
-        // check if amount is a multiple of 1000, express in 'k'
         if (t.amount >= 1000 && t.amount % 1000 === 0) {
           return `${t.amount / 1000}k`;
         }
@@ -64,8 +64,6 @@ export function exportTransactionsToText(transactions: Transaction[]): string {
         output += `${amtStr} ${desc}\n`;
       }
     });
-    
-    output += `\n`;
   });
   
   return output.trim();

@@ -7,13 +7,8 @@ export class FinanceDB extends Dexie {
   savings!: Table<SavingsRecord>;
 
   constructor() {
-    super('FinanceDB');
-    this.version(3).stores({
-      transactions: '++id, type, category, date',
-      budgets: 'category, amount',
-      savings: '++id, amount, date, type'
-    });
-    this.version(5).stores({
+    super('FinanceTracker');
+    this.version(1).stores({
       transactions: '++id, type, category, date',
       budgets: 'category, amount, month',
       savings: '++id, amount, date, type'
@@ -23,18 +18,38 @@ export class FinanceDB extends Dexie {
 
 export const db = new FinanceDB();
 
-// Graceful auto-recovery for any historical schema conflict
-db.open().catch(async (err) => {
-  console.warn('Dexie open error, attempting auto-recovery:', err);
-  if (err.name === 'UpgradeError' || err.message?.includes('primary key') || err.message?.includes('Upgrade')) {
+// Automatically migrate from old FinanceDB if present and clean up legacy conflict
+if (typeof window !== 'undefined') {
+  (async () => {
     try {
-      await Dexie.delete('FinanceDB');
-      await db.open();
-      console.log('Database cleanly recovered and reinitialized.');
-    } catch (reopenErr) {
-      console.error('Failed to auto-recover database:', reopenErr);
+      if ('indexedDB' in window) {
+        const dbs = await indexedDB.databases?.();
+        const hasLegacy = dbs?.some(d => d.name === 'FinanceDB');
+        if (hasLegacy) {
+          try {
+            const oldDB = new Dexie('FinanceDB');
+            await oldDB.open();
+            const oldTx = await oldDB.table('transactions').toArray().catch(() => []);
+            const oldBudgets = await oldDB.table('budgets').toArray().catch(() => []);
+            const oldSavings = await oldDB.table('savings').toArray().catch(() => []);
+            oldDB.close();
+
+            const currentCount = await db.transactions.count();
+            if (currentCount === 0 && oldTx.length > 0) {
+              await db.transactions.bulkAdd(oldTx);
+              if (oldBudgets.length > 0) await db.budgets.bulkAdd(oldBudgets);
+              if (oldSavings.length > 0) await db.savings.bulkAdd(oldSavings);
+            }
+          } catch {
+            // If old DB is corrupt or has upgrade error, ignore reading and delete
+          }
+          await Dexie.delete('FinanceDB').catch(() => {});
+        }
+      }
+    } catch {
+      // Ignore migration errors
     }
-  }
-});
+  })();
+}
 
 
