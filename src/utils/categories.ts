@@ -24,18 +24,23 @@ export const PREDEFINED_CATEGORIES = [
   { name: 'Others', iconName: 'HelpCircle', color: 'text-zinc-400 bg-zinc-400/10' }
 ] as const;
 
+const iconCache = new Map<string, any>();
+
 export const getCategoryIcon = (category: string) => {
-  const c = category.trim().toLowerCase();
-  
-  if (c.includes('food') || c.includes('eat') || c.includes('dining') || c.includes('coffee')) return Coffee;
-  if (c.includes('rent') || c.includes('home') || c.includes('house')) return Home;
-  if (c.includes('shop') || c.includes('cloth') || c.includes('apparel') || c.includes('grocery')) return ShoppingBag;
-  if (c.includes('transport') || c.includes('car') || c.includes('fuel') || c.includes('travel') || c.includes('bike')) return Car;
-  if (c.includes('util') || c.includes('bill') || c.includes('electricity') || c.includes('water') || c.includes('gas') || c.includes('wifi') || c.includes('internet')) return Zap;
-  if (c.includes('entertain') || c.includes('movie') || c.includes('film') || c.includes('game') || c.includes('show')) return Film;
-  if (c.includes('medic') || c.includes('health') || c.includes('doctor') || c.includes('hospital') || c.includes('pharmacy')) return Heart;
-  if (c.includes('salary') || c.includes('income') || c.includes('work') || c.includes('wage')) return Briefcase;
-  if (c.includes('invest') || c.includes('stock') || c.includes('crypto')) return TrendingUp;
-  
-  return HelpCircle;
+  const c = (category || '').trim().toLowerCase();
+  if (iconCache.has(c)) return iconCache.get(c);
+
+  let icon = HelpCircle;
+  if (c.includes('food') || c.includes('eat') || c.includes('dining') || c.includes('coffee')) icon = Coffee;
+  else if (c.includes('rent') || c.includes('home') || c.includes('house')) icon = Home;
+  else if (c.includes('shop') || c.includes('cloth') || c.includes('apparel') || c.includes('grocery')) icon = ShoppingBag;
+  else if (c.includes('transport') || c.includes('car') || c.includes('fuel') || c.includes('travel') || c.includes('bike')) icon = Car;
+  else if (c.includes('util') || c.includes('bill') || c.includes('electricity') || c.includes('water') || c.includes('gas') || c.includes('wifi') || c.includes('internet')) icon = Zap;
+  else if (c.includes('entertain') || c.includes('movie') || c.includes('film') || c.includes('game') || c.includes('show')) icon = Film;
+  else if (c.includes('medic') || c.includes('health') || c.includes('doctor') || c.includes('hospital') || c.includes('pharmacy')) icon = Heart;
+  else if (c.includes('salary') || c.includes('income') || c.includes('work') || c.includes('wage')) icon = Briefcase;
+  else if (c.includes('invest') || c.includes('stock') || c.includes('crypto')) icon = TrendingUp;
+
+  iconCache.set(c, icon);
+  return icon;
 };

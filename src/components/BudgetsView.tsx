@@ -1,5 +1,5 @@
 ﻿import React, { useState, useMemo } from 'react';
-import { Plus, X, Edit2, Trash2, Check, AlertTriangle, Target } from 'lucide-react';
+import { Plus, X, Edit2, Trash2, Check, AlertTriangle, Target, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { BottomSheet } from './ui/BottomSheet';
 import { Button } from './ui/Button';
 import { PREDEFINED_CATEGORIES, getCategoryIcon } from '../utils/categories';
@@ -10,6 +10,7 @@ import type { CategoryStat, Budget } from '../types';
 interface BudgetsViewProps {
   stats: CategoryStat[];
   budgets: Budget[];
+  currentMonth?: string;
   onSetBudget: (data: Budget) => Promise<any>;
   onDeleteBudget: (category: string) => Promise<any>;
 }
@@ -26,29 +27,74 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
   const [newAmount, setNewAmount] = useState('');
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editAmount, setEditAmount] = useState('');
+  const [showUnbudgeted, setShowUnbudgeted] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Map budgets by category name
-  const budgetMap = useMemo(() => {
-    return new Map(budgets.map((b) => [b.category.toLowerCase(), b.amount]));
+  // Map spending by normalized category name
+  const spendMap = useMemo(() => {
+    const map = new Map<string, number>();
+    stats.forEach((s) => {
+      map.set(s.category.trim().toLowerCase(), s.amount);
+    });
+    return map;
+  }, [stats]);
+
+  // Budget calculations
+  const budgetCalculations = useMemo(() => {
+    let totalBudget = 0;
+    let totalSpentInBudgeted = 0;
+
+    const budgetedCategories = budgets.map((b) => {
+      const spent = spendMap.get(b.category.trim().toLowerCase()) || 0;
+      totalBudget += b.amount;
+      totalSpentInBudgeted += spent;
+
+      const ratio = b.amount > 0 ? spent / b.amount : 0;
+      const percentage = Math.min(ratio * 100, 100);
+      const isOver = spent > b.amount;
+      const remaining = b.amount - spent;
+
+      return {
+        category: b.category,
+        budget: b.amount,
+        spent,
+        ratio,
+        percentage,
+        isOver,
+        remaining
+      };
+    });
+
+    // Unbudgeted spending categories
+    const budgetedNames = new Set(budgets.map((b) => b.category.trim().toLowerCase()));
+    const unbudgetedCategories = stats.filter(
+      (s) => !budgetedNames.has(s.category.trim().toLowerCase())
+    );
+    const totalUnbudgetedSpent = unbudgetedCategories.reduce((sum, s) => sum + s.amount, 0);
+
+    const overallRatio = totalBudget > 0 ? totalSpentInBudgeted / totalBudget : 0;
+    const overallRemaining = totalBudget - totalSpentInBudgeted;
+
+    return {
+      budgetedCategories,
+      unbudgetedCategories,
+      totalBudget,
+      totalSpentInBudgeted,
+      totalUnbudgetedSpent,
+      overallRatio,
+      overallRemaining
+    };
+  }, [budgets, stats, spendMap]);
+
+  // Quick categories that do not have a budget limit yet
+  const availableQuickCategories = useMemo(() => {
+    const budgetedNames = new Set(budgets.map((b) => b.category.trim().toLowerCase()));
+    return PREDEFINED_CATEGORIES.filter((c) => !budgetedNames.has(c.name.toLowerCase()));
   }, [budgets]);
 
-  // Combine categories with budget limit OR active spending
-  const activeCategories = useMemo(() => {
-    const names = new Set<string>();
-    budgets.forEach((b) => names.add(b.category));
-    stats.forEach((s) => names.add(s.category));
-    return Array.from(names).sort((a, b) => a.localeCompare(b));
-  }, [stats, budgets]);
-
-  // Quick categories that do NOT have a budget limit yet
-  const availableQuickCategories = useMemo(() => {
-    return PREDEFINED_CATEGORIES.filter((c) => !budgetMap.has(c.name.toLowerCase()));
-  }, [budgetMap]);
-
-  const handleStartEdit = (category: string, currentBudget: number | undefined) => {
+  const handleStartEdit = (category: string, currentBudget: number) => {
     setEditingCategory(category);
-    setEditAmount(currentBudget ? currentBudget.toString() : '');
+    setEditAmount(currentBudget.toString());
   };
 
   const handleSaveEdit = async (category: string) => {
@@ -56,10 +102,10 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
     try {
       if (isNaN(amount) || amount <= 0) {
         await onDeleteBudget(category);
-        showToast(`Budget limit removed for ${category}`, 'info');
+        showToast(`Limit removed for ${category}`, 'info');
       } else {
         await onSetBudget({ category, amount });
-        showToast(`Budget limit updated for ${category}`, 'success');
+        showToast(`Limit updated for ${category}`, 'success');
       }
     } catch {
       showToast('Failed to save budget', 'error');
@@ -84,7 +130,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
     const amount = parseFloat(newAmount);
 
     if (!trimmedCat) {
-      showToast('Category name is required', 'error');
+      showToast('Please select or enter a category name', 'error');
       return;
     }
     if (isNaN(amount) || amount <= 0) {
@@ -95,25 +141,84 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
     setLoading(true);
     try {
       await onSetBudget({ category: trimmedCat, amount });
-      showToast(`Budget limit added for ${trimmedCat}`, 'success');
+      showToast(`Budget limit set for ${trimmedCat}`, 'success');
       setNewCategory('');
       setNewAmount('');
       setIsAddOpen(false);
     } catch {
-      showToast('Failed to add budget limit', 'error');
+      showToast('Failed to save budget', 'error');
     } finally {
       setLoading(false);
     }
   };
 
+  const {
+    budgetedCategories,
+    unbudgetedCategories,
+    totalBudget,
+    totalSpentInBudgeted,
+    totalUnbudgetedSpent,
+    overallRatio,
+    overallRemaining
+  } = budgetCalculations;
+
   return (
-    <div className="space-y-5 animate-fade-in pb-2">
-      {/* Top Header Card */}
-      <div className="p-4 rounded-2xl bg-[#101014] border border-white/5 flex items-center justify-between">
+    <div className="space-y-4 animate-fade-in pb-4">
+      {/* --- OVERALL MONTHLY BUDGET HERO CARD --- */}
+      {totalBudget > 0 ? (
+        <section className="p-5 rounded-3xl bg-gradient-to-b from-[#181226] to-[#0e0c14] border border-violet-500/20 shadow-xl shadow-black/40 space-y-3.5">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                Total Budget
+              </div>
+              <div className="text-2xl font-black text-white mt-0.5 tabular-nums">
+                {formatCurrency(totalBudget)}
+              </div>
+            </div>
+
+            <div className="text-right">
+              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+                {overallRemaining >= 0 ? 'Remaining' : 'Over Budget'}
+              </div>
+              <div
+                className={`text-xl font-black mt-0.5 tabular-nums ${
+                  overallRemaining >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                }`}
+              >
+                {formatCurrency(Math.abs(overallRemaining))}
+              </div>
+            </div>
+          </div>
+
+          {/* Overall Progress Bar */}
+          <div className="space-y-1.5">
+            <div className="w-full h-2 rounded-full bg-white/5 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  overallRatio > 1
+                    ? 'bg-rose-500'
+                    : overallRatio > 0.85
+                    ? 'bg-amber-400'
+                    : 'bg-emerald-400'
+                }`}
+                style={{ width: `${Math.min(overallRatio * 100, 100)}%` }}
+              />
+            </div>
+            <div className="flex items-center justify-between text-[10px] font-bold text-zinc-500">
+              <span>{formatCurrency(totalSpentInBudgeted)} spent</span>
+              <span>{Math.round(overallRatio * 100)}% of total budget</span>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
+      {/* Header & Add Button */}
+      <div className="flex items-center justify-between px-1">
         <div>
-          <h2 className="text-sm font-black text-white uppercase tracking-wider">Category Budgets</h2>
-          <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-0.5">
-            {budgets.length} {budgets.length === 1 ? 'Limit active' : 'Limits active'}
+          <h2 className="text-xs font-black text-white uppercase tracking-wider">Category Limits</h2>
+          <p className="text-[10px] font-bold text-zinc-500 mt-0.5">
+            {budgets.length} {budgets.length === 1 ? 'category limit' : 'category limits'}
           </p>
         </div>
 
@@ -127,54 +232,36 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
         </Button>
       </div>
 
-      {/* Budgets List */}
-      <div className="space-y-3">
-        {activeCategories.length === 0 ? (
+      {/* --- ACTIVE BUDGETED CATEGORIES --- */}
+      <div className="space-y-2.5">
+        {budgetedCategories.length === 0 ? (
           <div className="p-8 text-center bg-[#101014] rounded-2xl border border-white/5 space-y-2">
             <div className="w-10 h-10 rounded-full bg-white/5 text-zinc-500 flex items-center justify-center mx-auto">
               <Target size={18} />
             </div>
-            <div className="text-xs font-bold text-zinc-400">No category limits set</div>
-            <p className="text-[10px] text-zinc-600">
-              Tap "Add Limit" above to set category spending targets
+            <div className="text-xs font-bold text-zinc-300">No category limits set</div>
+            <p className="text-[10px] text-zinc-500">
+              Tap "Add Limit" to set spending targets for Food, Rent, Shopping, etc.
             </p>
           </div>
         ) : (
-          activeCategories.map((category) => {
-            const spendStat = stats.find(
-              (s) => s.category.toLowerCase() === category.toLowerCase()
-            );
-            const spent = spendStat ? spendStat.amount : 0;
-            const budget = budgetMap.get(category.toLowerCase());
+          budgetedCategories.map((item) => {
+            const Icon = getCategoryIcon(item.category);
+            const isEditing = editingCategory === item.category;
 
-            const Icon = getCategoryIcon(category);
-            const hasBudget = budget !== undefined && budget > 0;
-            const ratio = hasBudget ? spent / budget : 0;
-            const percentage = Math.min(ratio * 100, 100);
-            const isOver = hasBudget && spent > budget;
-            const overAmount = isOver ? spent - budget : 0;
-
-            // Bar Color
-            let barColor = 'bg-primary';
-            let textColor = 'text-zinc-300';
-            if (hasBudget) {
-              if (ratio > 1) {
-                barColor = 'bg-rose-500';
-                textColor = 'text-rose-400';
-              } else if (ratio > 0.85) {
-                barColor = 'bg-amber-400';
-                textColor = 'text-amber-400';
-              } else {
-                barColor = 'bg-emerald-400';
-                textColor = 'text-emerald-400';
-              }
+            let barColor = 'bg-emerald-400';
+            let statusTextColor = 'text-emerald-400';
+            if (item.ratio > 1) {
+              barColor = 'bg-rose-500';
+              statusTextColor = 'text-rose-400';
+            } else if (item.ratio > 0.85) {
+              barColor = 'bg-amber-400';
+              statusTextColor = 'text-amber-400';
             }
-
-            const isEditing = editingCategory === category;
 
             return (
               <div
-                key={category}
+                key={item.category}
                 className="p-4 rounded-2xl bg-[#101014] border border-white/5 space-y-3"
               >
                 <div className="flex items-center justify-between">
@@ -183,15 +270,9 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
                       <Icon size={15} />
                     </div>
                     <div className="truncate">
-                      <div className="text-xs font-black text-white truncate">{category}</div>
-                      <div className="text-[10px] text-zinc-500 font-bold mt-0.5">
-                        {hasBudget ? (
-                          <span>
-                            {formatCurrency(spent)} of {formatCurrency(budget)}
-                          </span>
-                        ) : (
-                          <span>Spent: {formatCurrency(spent)} (No limit)</span>
-                        )}
+                      <div className="text-xs font-black text-white truncate">{item.category}</div>
+                      <div className="text-[10px] font-bold text-zinc-400 mt-0.5">
+                        {formatCurrency(item.spent)} of {formatCurrency(item.budget)}
                       </div>
                     </div>
                   </div>
@@ -206,75 +287,139 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
                           value={editAmount}
                           onChange={(e) => setEditAmount(e.target.value)}
                           autoFocus
-                          className="w-18 bg-transparent text-xs font-bold text-white outline-none"
+                          className="w-16 bg-transparent text-xs font-bold text-white outline-none tabular-nums"
                         />
                         <button
-                          onClick={() => handleSaveEdit(category)}
+                          onClick={() => handleSaveEdit(item.category)}
                           className="p-1 text-emerald-400 hover:text-emerald-300 cursor-pointer"
                         >
-                          <Check size={14} />
+                          <Check size={13} />
                         </button>
                         <button
                           onClick={() => setEditingCategory(null)}
                           className="p-1 text-zinc-500 hover:text-zinc-300 cursor-pointer"
                         >
-                          <X size={14} />
+                          <X size={13} />
                         </button>
                       </div>
                     ) : (
                       <>
                         <button
-                          onClick={() => handleStartEdit(category, budget)}
+                          onClick={() => handleStartEdit(item.category, item.budget)}
                           className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-300 hover:bg-white/5 cursor-pointer pressable"
                           title="Edit Limit"
                         >
                           <Edit2 size={13} />
                         </button>
-                        {hasBudget && (
-                          <button
-                            onClick={() => handleDeleteBudget(category)}
-                            className="p-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 cursor-pointer pressable"
-                            title="Delete Limit"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleDeleteBudget(item.category)}
+                          className="p-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 cursor-pointer pressable"
+                          title="Delete Limit"
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </>
                     )}
                   </div>
                 </div>
 
-                {/* Progress Bar (If has budget) */}
-                {hasBudget && (
-                  <div className="space-y-1.5">
-                    <div className="w-full h-1.5 rounded-full bg-[#16161c] overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-300 ${barColor}`}
-                        style={{ width: `${percentage}%` }}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between text-[9px] font-bold">
-                      <span className={textColor}>{Math.round(ratio * 100)}% used</span>
-                      {isOver && (
-                        <span className="text-rose-400 flex items-center gap-1">
-                          <AlertTriangle size={10} /> Over by {formatCurrency(overAmount)}
+                {/* Progress Bar & Status Text */}
+                <div className="space-y-1.5">
+                  <div className="w-full h-1.5 rounded-full bg-[#16161c] overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${barColor}`}
+                      style={{ width: `${item.percentage}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between text-[9px] font-bold">
+                    <span className={statusTextColor}>
+                      {item.isOver ? (
+                        <span className="flex items-center gap-1">
+                          <AlertTriangle size={10} /> Over by {formatCurrency(Math.abs(item.remaining))}
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1">
+                          <CheckCircle2 size={10} /> {formatCurrency(item.remaining)} left
                         </span>
                       )}
-                    </div>
+                    </span>
+                    <span className="text-zinc-500">{Math.round(item.ratio * 100)}% used</span>
                   </div>
-                )}
+                </div>
               </div>
             );
           })
         )}
       </div>
 
-      {/* Add Budget Limit Sheet */}
+      {/* --- UNBUDGETED SPENDING SECTION (Collapsible) --- */}
+      {unbudgetedCategories.length > 0 && (
+        <div className="space-y-2 pt-2">
+          <button
+            type="button"
+            onClick={() => setShowUnbudgeted(!showUnbudgeted)}
+            className="w-full flex items-center justify-between p-3 rounded-2xl bg-[#101014] border border-white/5 text-left cursor-pointer pressable"
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-zinc-400">Other Expenses</span>
+              <span className="text-[9px] font-bold bg-white/5 text-zinc-500 px-2 py-0.5 rounded-md">
+                {formatCurrency(totalUnbudgetedSpent)}
+              </span>
+            </div>
+            <ChevronDown
+              size={14}
+              className={`text-zinc-500 transition-transform duration-200 ${
+                showUnbudgeted ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+
+          {showUnbudgeted && (
+            <div className="space-y-1.5 pl-2">
+              {unbudgetedCategories.map((s) => {
+                const Icon = getCategoryIcon(s.category);
+                return (
+                  <div
+                    key={s.category}
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-[#121216] border border-white/5"
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <div className="w-6 h-6 rounded-lg bg-white/5 text-zinc-400 flex items-center justify-center shrink-0">
+                        <Icon size={12} />
+                      </div>
+                      <span className="text-xs font-semibold text-zinc-300 truncate">
+                        {s.category}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs font-black text-zinc-200 tabular-nums">
+                        {formatCurrency(s.amount)}
+                      </span>
+                      <button
+                        onClick={() => {
+                          setNewCategory(s.category);
+                          setIsAddOpen(true);
+                        }}
+                        className="text-[9px] font-bold text-primary hover:text-primary-hover px-2 py-1 rounded-lg bg-primary/10 cursor-pointer"
+                      >
+                        + Set Limit
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* --- ADD BUDGET LIMIT BOTTOM SHEET --- */}
       <BottomSheet
         isOpen={isAddOpen}
         onClose={() => setIsAddOpen(false)}
-        title="Add Budget Limit"
-        subtitle="Set a monthly category spending threshold"
+        title="Add Category Limit"
+        subtitle="Set a monthly spending threshold"
       >
         <form onSubmit={handleAddSubmit} className="space-y-4 pb-2">
           {availableQuickCategories.length > 0 && (
@@ -282,16 +427,16 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
               <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">
                 Quick Select
               </label>
-              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto no-scrollbar p-1">
+              <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto no-scrollbar p-1 bg-[#141418] rounded-2xl border border-white/5">
                 {availableQuickCategories.map((c) => (
                   <button
                     key={c.name}
                     type="button"
                     onClick={() => setNewCategory(c.name)}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                      newCategory === c.name
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer select-none pressable ${
+                      newCategory.toLowerCase() === c.name.toLowerCase()
                         ? 'bg-primary text-white scale-[1.02]'
-                        : 'bg-[#16161c] text-zinc-400 border border-white/5 hover:text-zinc-200'
+                        : 'bg-[#101014] text-zinc-400 border border-white/5 hover:text-zinc-200'
                     }`}
                   >
                     {c.name}
@@ -301,20 +446,20 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
             </div>
           )}
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">
               Category Name
             </label>
             <input
               type="text"
-              placeholder="e.g. Subscriptions, Gaming"
+              placeholder="e.g. Subscriptions, Food"
               value={newCategory}
               onChange={(e) => setNewCategory(e.target.value)}
               className="w-full bg-[#16161c] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none"
             />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <label className="text-[10px] font-bold text-zinc-500 uppercase px-1">
               Monthly Limit (PKR)
             </label>
@@ -335,7 +480,7 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
             loading={loading}
             className="w-full mt-2"
           >
-            Create Budget Limit
+            Save Limit
           </Button>
         </form>
       </BottomSheet>

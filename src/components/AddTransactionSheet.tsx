@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect, useRef, memo } from 'react';
 import { BottomSheet } from './ui/BottomSheet';
 import { SegmentedControl } from './ui/SegmentedControl';
 import { Button } from './ui/Button';
@@ -19,6 +19,35 @@ interface AddTransactionSheetProps {
   }) => Promise<any>;
 }
 
+// Memoized Category Chip for 0ms lag
+const CategoryChip = memo(
+  ({
+    name,
+    isSelected,
+    onSelect
+  }: {
+    name: string;
+    isSelected: boolean;
+    onSelect: (cat: string) => void;
+  }) => {
+    const Icon = getCategoryIcon(name);
+    return (
+      <button
+        type="button"
+        onClick={() => onSelect(name)}
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer select-none pressable ${
+          isSelected
+            ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]'
+            : 'bg-[#121216] text-zinc-400 border border-white/5 hover:text-zinc-200'
+        }`}
+      >
+        <Icon size={13} className={isSelected ? 'text-white' : 'text-zinc-500'} />
+        <span>{name}</span>
+      </button>
+    );
+  }
+);
+
 export const AddTransactionSheet: React.FC<AddTransactionSheetProps> = ({
   isOpen,
   onClose,
@@ -31,13 +60,21 @@ export const AddTransactionSheet: React.FC<AddTransactionSheetProps> = ({
   const [description, setDescription] = useState('');
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(false);
+  const amountInputRef = useRef<HTMLInputElement>(null);
 
+  // Reset and smooth focus when opened
   useEffect(() => {
     if (isOpen) {
       setAmount('');
       setCategory('');
       setDescription('');
       setDate(new Date().toISOString().slice(0, 10));
+
+      // Delay focus slightly so the bottom sheet animation completes smoothly without mobile keyboard stutter
+      const timer = setTimeout(() => {
+        amountInputRef.current?.focus();
+      }, 180);
+      return () => clearTimeout(timer);
     }
   }, [isOpen]);
 
@@ -45,7 +82,7 @@ export const AddTransactionSheet: React.FC<AddTransactionSheetProps> = ({
     e.preventDefault();
     const numAmount = parseFloat(amount);
     if (isNaN(numAmount) || numAmount <= 0) {
-      showToast('Please enter a valid amount greater than 0', 'error');
+      showToast('Please enter an amount greater than 0', 'error');
       return;
     }
     if (!date) {
@@ -63,7 +100,7 @@ export const AddTransactionSheet: React.FC<AddTransactionSheetProps> = ({
         description: description.trim(),
         date
       });
-      showToast(type === 'INCOME' ? 'Income logged' : 'Expense logged', 'success');
+      showToast(type === 'INCOME' ? 'Income added' : 'Expense added', 'success');
       onClose();
     } catch {
       showToast('Failed to save transaction', 'error');
@@ -73,9 +110,9 @@ export const AddTransactionSheet: React.FC<AddTransactionSheetProps> = ({
   };
 
   return (
-    <BottomSheet isOpen={isOpen} onClose={onClose} title="New Transaction">
-      <form onSubmit={handleSubmit} className="space-y-5 pb-2">
-        {/* Type Toggle */}
+    <BottomSheet isOpen={isOpen} onClose={onClose} title="Add Entry">
+      <form onSubmit={handleSubmit} className="space-y-4 pb-2">
+        {/* Type Toggle: Spending vs Income */}
         <SegmentedControl<TransactionType>
           options={[
             {
@@ -96,27 +133,27 @@ export const AddTransactionSheet: React.FC<AddTransactionSheetProps> = ({
         />
 
         {/* Large Focal Amount Input */}
-        <div className="space-y-1.5">
+        <div className="space-y-1">
           <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-1">
             Amount
           </label>
-          <div className="relative flex items-center bg-[#16161c] rounded-2xl border border-white/10 focus-within:border-primary/50 focus-within:ring-1 focus-within:ring-primary/20 transition-all p-3.5">
-            <span className="text-base font-bold text-zinc-500 mr-2 select-none">PKR</span>
+          <div className="flex items-center bg-[#16161c] rounded-2xl border border-white/10 focus-within:border-primary/50 transition-all p-3.5">
+            <span className="text-sm font-black text-zinc-500 mr-2.5 select-none">PKR</span>
             <input
+              ref={amountInputRef}
               type="number"
               step="any"
-              placeholder="0.00"
+              placeholder="0"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              autoFocus
               className="w-full bg-transparent text-2xl font-black text-white tabular-nums outline-none placeholder:text-zinc-700"
             />
           </div>
         </div>
 
-        {/* Category Selector (For Spending Only) */}
+        {/* Category Selector (Only for Spending) */}
         {type === 'EXPENSE' && (
-          <div className="space-y-2 animate-fade-in">
+          <div className="space-y-2">
             <div className="flex items-center justify-between px-1">
               <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">
                 Category
@@ -133,32 +170,21 @@ export const AddTransactionSheet: React.FC<AddTransactionSheetProps> = ({
             </div>
 
             {/* Quick Chips */}
-            <div className="flex flex-wrap gap-1.5 p-2 bg-[#16161c]/60 rounded-2xl border border-white/5 max-h-28 overflow-y-auto no-scrollbar">
-              {PREDEFINED_CATEGORIES.map((c) => {
-                const Icon = getCategoryIcon(c.name);
-                const isSelected = category.toLowerCase() === c.name.toLowerCase();
-                return (
-                  <button
-                    key={c.name}
-                    type="button"
-                    onClick={() => setCategory(c.name)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer pressable ${
-                      isSelected
-                        ? 'bg-primary text-white shadow-md shadow-primary/20 scale-[1.02]'
-                        : 'bg-[#101014] text-zinc-400 border border-white/5 hover:text-zinc-200'
-                    }`}
-                  >
-                    <Icon size={12} className={isSelected ? 'text-white' : 'text-zinc-500'} />
-                    <span>{c.name}</span>
-                  </button>
-                );
-              })}
+            <div className="flex flex-wrap gap-1.5 p-2 bg-[#141418] rounded-2xl border border-white/5 max-h-32 overflow-y-auto no-scrollbar">
+              {PREDEFINED_CATEGORIES.map((c) => (
+                <CategoryChip
+                  key={c.name}
+                  name={c.name}
+                  isSelected={category.toLowerCase() === c.name.toLowerCase()}
+                  onSelect={setCategory}
+                />
+              ))}
             </div>
 
             {/* Custom Category Input */}
             <input
               type="text"
-              placeholder="Or enter custom category..."
+              placeholder="Or type custom category..."
               value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="w-full bg-[#16161c] border border-white/10 focus:border-primary/40 rounded-xl px-3.5 py-2.5 text-xs text-white outline-none placeholder:text-zinc-600 transition-colors"
@@ -167,8 +193,8 @@ export const AddTransactionSheet: React.FC<AddTransactionSheetProps> = ({
         )}
 
         {/* Date & Note Row */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="space-y-1">
             <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-1 flex items-center gap-1">
               <Calendar size={11} /> Date
             </label>
@@ -180,13 +206,13 @@ export const AddTransactionSheet: React.FC<AddTransactionSheetProps> = ({
             />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider px-1 flex items-center gap-1">
               <Tag size={11} /> Note (Optional)
             </label>
             <input
               type="text"
-              placeholder="e.g. Grocery, Lunch"
+              placeholder="e.g. Lunch, Fuel"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="w-full bg-[#16161c] border border-white/10 focus:border-primary/40 rounded-xl px-3 py-2.5 text-xs text-zinc-200 outline-none transition-colors placeholder:text-zinc-600"
@@ -194,7 +220,7 @@ export const AddTransactionSheet: React.FC<AddTransactionSheetProps> = ({
           </div>
         </div>
 
-        {/* Submit Action */}
+        {/* Save Button */}
         <Button
           type="submit"
           loading={loading}
@@ -202,7 +228,7 @@ export const AddTransactionSheet: React.FC<AddTransactionSheetProps> = ({
           size="md"
           className="w-full mt-2"
         >
-          Save Transaction
+          Save Entry
         </Button>
       </form>
     </BottomSheet>

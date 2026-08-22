@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, memo } from 'react';
+﻿import React, { useState, useMemo, useCallback, memo } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import { 
   Plus, 
@@ -7,9 +7,10 @@ import {
   ChevronDown, 
   ChevronRight, 
   PiggyBank, 
-  TrendingUp, 
-  TrendingDown,
-  Wallet
+  ArrowUpRight,
+  ArrowDownLeft,
+  Wallet,
+  Sparkles
 } from 'lucide-react';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { SegmentedControl } from './ui/SegmentedControl';
@@ -38,7 +39,7 @@ const TransactionRow = memo(
     return (
       <button
         onClick={() => onSelect(t)}
-        className="w-full flex items-center justify-between p-3.5 bg-[#121216] border border-white/5 active:bg-[#181820] text-left cursor-pointer rounded-2xl transition-all duration-150 pressable"
+        className="w-full flex items-center justify-between p-3.5 bg-[#101014] border border-white/5 active:bg-[#16161c] text-left cursor-pointer rounded-2xl transition-all duration-150 pressable"
       >
         <div className="flex items-center gap-3 overflow-hidden">
           <div
@@ -129,10 +130,12 @@ export const WalletView: React.FC<WalletViewProps> = ({
     setCollapsedDates((prev) => ({ ...prev, [date]: !prev[date] }));
   }, []);
 
+  const isAllTime = currentMonth === 'ALL';
+
   // Filter transactions
   const filtered = useMemo(() => {
     return transactions.filter((t) => {
-      if (currentMonth !== 'ALL' && !t.date.startsWith(currentMonth)) return false;
+      if (!isAllTime && !t.date.startsWith(currentMonth)) return false;
       if (typeFilter !== 'ALL' && t.type !== typeFilter) return false;
       if (
         search &&
@@ -143,7 +146,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
       }
       return true;
     });
-  }, [transactions, currentMonth, typeFilter, search]);
+  }, [transactions, currentMonth, isAllTime, typeFilter, search]);
 
   // Sort transactions
   const sortedList = useMemo(() => {
@@ -202,135 +205,89 @@ export const WalletView: React.FC<WalletViewProps> = ({
     return renderData;
   }, [sortedList, sortType, collapsedDates]);
 
-  return (
-    <div className="space-y-5 animate-fade-in">
-      {/* Hero Liquid Balance Card */}
-      <section className="bg-gradient-to-br from-[#181126] via-[#121019] to-[#0c0c0f] p-5 sm:p-6 rounded-[28px] border border-violet-500/20 shadow-xl shadow-black/60 relative overflow-hidden">
-        <div className="absolute -top-6 -right-6 p-8 opacity-[0.03] text-white pointer-events-none">
-          <Wallet size={130} />
-        </div>
+  // Active numbers
+  const displayIncome = isAllTime ? lifetimeStats.totalIncome : monthlyStats.totalIncome;
+  const displayExpense = isAllTime ? lifetimeStats.totalExpense : monthlyStats.totalExpense;
+  const displaySavings = isAllTime ? lifetimeStats.totalSavings : monthlyStats.totalSavings;
+  const displayHeroBalance = isAllTime ? lifetimeStats.balance : monthlyStats.balance;
+  const totalNetWorth = lifetimeStats.totalIncome - lifetimeStats.totalExpense;
 
-        <div className="flex flex-col gap-4 relative z-10">
+  return (
+    <div className="space-y-4 animate-fade-in">
+      {/* --- SINGLE UNIFIED FINANCIAL SUMMARY CARD --- */}
+      <section className="bg-gradient-to-b from-[#161224] to-[#0e0c14] p-5 rounded-3xl border border-violet-500/20 shadow-xl shadow-black/40 space-y-4">
+        {/* Top Hero Balance */}
+        <div className="flex items-start justify-between">
           <div>
-            <div className="flex items-center gap-1.5 text-zinc-400 text-[11px] font-bold uppercase tracking-wider">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>{currentMonth === 'ALL' ? 'Total Balance' : 'Balance'}</span>
+            <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] font-bold uppercase tracking-wider">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>{isAllTime ? 'Total Liquid Cash' : 'Remaining Cash This Month'}</span>
             </div>
-            <div className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-1">
-              <AnimatedNumber value={monthlyStats.balance} />
+            <div className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-0.5">
+              <AnimatedNumber value={displayHeroBalance} />
             </div>
           </div>
 
-          {/* Interactive Vault Bridge Capsule */}
+          {/* Quick Period Badge */}
+          <div className="px-2.5 py-1 rounded-xl bg-white/[0.04] border border-white/5 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
+            {isAllTime ? 'All Time' : currentMonth}
+          </div>
+        </div>
+
+        {/* 3-Column Unified Breakdown: Earnt, Spent, Saved */}
+        <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/5">
+          {/* Earnt */}
+          <div className="p-2.5 rounded-2xl bg-[#101014]/80 border border-emerald-500/15">
+            <div className="flex items-center gap-1 text-emerald-400 text-[9px] font-bold uppercase">
+              <ArrowUpRight size={11} /> Earnt
+            </div>
+            <div className="text-xs sm:text-sm font-black text-emerald-400 mt-1 truncate">
+              <AnimatedNumber value={displayIncome} />
+            </div>
+          </div>
+
+          {/* Spent */}
+          <div className="p-2.5 rounded-2xl bg-[#101014]/80 border border-rose-500/15">
+            <div className="flex items-center gap-1 text-rose-400 text-[9px] font-bold uppercase">
+              <ArrowDownLeft size={11} /> Spent
+            </div>
+            <div className="text-xs sm:text-sm font-black text-rose-400 mt-1 truncate">
+              <AnimatedNumber value={displayExpense} />
+            </div>
+          </div>
+
+          {/* Saved */}
           <div
             onClick={onOpenVault}
-            className="cursor-pointer p-3 rounded-2xl bg-[#0e0c14]/80 border border-violet-500/25 hover:border-violet-500/40 flex items-center justify-between group transition-all pressable"
+            className="p-2.5 rounded-2xl bg-[#101014]/80 border border-violet-500/20 cursor-pointer hover:border-violet-500/40 transition-colors pressable"
           >
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-violet-500/20 text-violet-300 flex items-center justify-center shrink-0">
-                <PiggyBank size={16} />
-              </div>
-              <div>
-                <div className="text-[9px] font-bold text-violet-400 uppercase tracking-wider">
-                  Savings Reserve
-                </div>
-                <div className="text-xs font-black text-white">
-                  {formatCurrency(lifetimeStats.vaultBalance)}
-                </div>
-              </div>
+            <div className="flex items-center gap-1 text-violet-400 text-[9px] font-bold uppercase">
+              <PiggyBank size={11} /> Saved
             </div>
-            <span className="text-[10px] font-bold text-violet-400 group-hover:translate-x-0.5 transition-transform pr-1">
-              Vault →
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* Asymmetric 2+1 Cashflow Metrics */}
-      <div className="space-y-2.5">
-        {/* Row 1: Income & Spending */}
-        <div className="grid grid-cols-2 gap-2.5">
-          <div className="p-4 rounded-2xl bg-[#101014] border border-emerald-500/20 flex flex-col justify-between">
-            <div className="flex items-center justify-between text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
-              <span>Income</span>
-              <div className="p-1 rounded-lg bg-emerald-500/10 text-emerald-400">
-                <TrendingUp size={13} />
-              </div>
-            </div>
-            <div>
-              <div className="text-lg sm:text-xl font-black text-emerald-400 truncate">
-                <AnimatedNumber value={monthlyStats.totalIncome} />
-              </div>
-              <p className="text-[9px] text-zinc-500 font-medium tracking-wide mt-0.5">Earnings</p>
-            </div>
-          </div>
-
-          <div className="p-4 rounded-2xl bg-[#101014] border border-rose-500/20 flex flex-col justify-between">
-            <div className="flex items-center justify-between text-zinc-400 text-[10px] font-bold uppercase tracking-wider mb-1.5">
-              <span>Spending</span>
-              <div className="p-1 rounded-lg bg-rose-500/10 text-rose-400">
-                <TrendingDown size={13} />
-              </div>
-            </div>
-            <div>
-              <div className="text-lg sm:text-xl font-black text-rose-400 truncate">
-                <AnimatedNumber value={monthlyStats.totalExpense} />
-              </div>
-              <p className="text-[9px] text-zinc-500 font-medium tracking-wide mt-0.5">Expenses</p>
+            <div className="text-xs sm:text-sm font-black text-violet-300 mt-1 truncate">
+              <AnimatedNumber value={displaySavings} />
             </div>
           </div>
         </div>
 
-        {/* Row 2: Full Width Savings Movement */}
+        {/* Context Bar: Total Vault & Net Worth */}
         <div
           onClick={onOpenVault}
-          className="p-3.5 rounded-2xl bg-[#101014] border border-violet-500/25 flex items-center justify-between cursor-pointer pressable"
+          className="flex items-center justify-between p-2.5 rounded-2xl bg-white/[0.02] border border-white/5 hover:border-violet-500/20 text-xs cursor-pointer pressable"
         >
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-violet-500/15 text-violet-300">
-              <PiggyBank size={15} />
-            </div>
-            <div>
-              <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">
-                Monthly Savings
-              </div>
-              <div className="text-sm font-black text-violet-300">
-                <AnimatedNumber value={monthlyStats.totalSavings} />
-              </div>
-            </div>
+          <div className="flex items-center gap-2 text-zinc-400 text-[11px] font-bold">
+            <Sparkles size={13} className="text-violet-400" />
+            <span>
+              {isAllTime
+                ? `Total Net Worth: ${formatCurrency(totalNetWorth)}`
+                : `Total in Vault: ${formatCurrency(lifetimeStats.vaultBalance)}`}
+            </span>
           </div>
-          <span className="text-[10px] font-bold text-violet-400">
-            {monthlyStats.totalSavings >= 0 ? 'Allocated' : 'Withdrawn'} →
-          </span>
-        </div>
-      </div>
-
-      {/* Lifetime Wealth Matrix */}
-      <section className="p-4 rounded-2xl bg-[#101014] border border-white/5 space-y-2.5">
-        <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest px-0.5">
-          All-Time Overview
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <div className="p-2.5 rounded-xl bg-[#16161c]/70 border border-white/5">
-            <div className="text-[9px] font-bold text-zinc-500 uppercase">Cash</div>
-            <div className="text-xs font-black text-zinc-200 mt-0.5">{formatCurrency(lifetimeStats.balance)}</div>
-          </div>
-          <div className="p-2.5 rounded-xl bg-[#16161c]/70 border border-violet-500/15">
-            <div className="text-[9px] font-bold text-violet-400/80 uppercase">Vault</div>
-            <div className="text-xs font-black text-violet-300 mt-0.5">{formatCurrency(lifetimeStats.vaultBalance)}</div>
-          </div>
-          <div className="p-2.5 rounded-xl bg-[#16161c]/70 border border-emerald-500/15">
-            <div className="text-[9px] font-bold text-emerald-500/80 uppercase">Earned</div>
-            <div className="text-xs font-black text-emerald-400 mt-0.5">{formatCurrency(lifetimeStats.totalIncome)}</div>
-          </div>
-          <div className="p-2.5 rounded-xl bg-[#16161c]/70 border border-rose-500/15">
-            <div className="text-[9px] font-bold text-rose-500/80 uppercase">Spent</div>
-            <div className="text-xs font-black text-rose-400 mt-0.5">{formatCurrency(lifetimeStats.totalExpense)}</div>
-          </div>
+          <span className="text-[10px] font-bold text-violet-400">Vault →</span>
         </div>
       </section>
 
-      {/* Transaction Feed Section */}
+      {/* --- TRANSACTIONS FEED SECTION --- */}
       <section className="space-y-3 pt-1">
         <div className="flex items-center justify-between px-1">
           <h3 className="text-xs font-black text-white uppercase tracking-wider">Transactions</h3>
@@ -358,7 +315,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
                 placeholder="Search transactions..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full bg-[#16161c] border border-white/5 focus:border-primary/40 rounded-xl py-2 pl-9 pr-3 text-xs text-white placeholder:text-zinc-600 outline-none transition-colors"
+                className="w-full bg-[#141418] border border-white/5 focus:border-primary/40 rounded-xl py-2 pl-9 pr-3 text-xs text-white placeholder:text-zinc-600 outline-none transition-colors"
               />
             </div>
 
@@ -366,7 +323,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
               <select
                 value={sortType}
                 onChange={(e) => setSortType(e.target.value as SortType)}
-                className="appearance-none bg-[#16161c] border border-white/5 focus:border-primary/40 rounded-xl py-2 pl-7 pr-7 text-xs font-bold text-zinc-300 outline-none cursor-pointer"
+                className="appearance-none bg-[#141418] border border-white/5 focus:border-primary/40 rounded-xl py-2 pl-7 pr-7 text-xs font-bold text-zinc-300 outline-none cursor-pointer"
               >
                 <option value="DATE">Date</option>
                 <option value="HIGH">High</option>
@@ -379,12 +336,12 @@ export const WalletView: React.FC<WalletViewProps> = ({
           </div>
         </div>
 
-        {/* List Content */}
+        {/* Virtuoso Feed */}
         {flatList.length > 0 ? (
           <Virtuoso
             useWindowScroll
             data={flatList}
-            overscan={400}
+            overscan={300}
             itemContent={(_index, item) => {
               if (item.isHeader) {
                 return (
@@ -409,7 +366,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
               <Wallet size={18} />
             </div>
             <div className="text-xs font-bold text-zinc-400">No transactions recorded</div>
-            <p className="text-[10px] text-zinc-600">Tap the + button below to log your first entry</p>
+            <p className="text-[10px] text-zinc-600">Tap + to log an entry</p>
           </div>
         )}
       </section>
