@@ -7,9 +7,10 @@ import {
   ChevronDown, 
   ChevronRight, 
   PiggyBank, 
-  ArrowUpRight,
-  ArrowDownLeft,
-  Wallet
+  ArrowUpRight, 
+  ArrowDownLeft, 
+  Landmark, 
+  Wallet 
 } from 'lucide-react';
 import { AnimatedNumber } from './ui/AnimatedNumber';
 import { SegmentedControl } from './ui/SegmentedControl';
@@ -210,6 +211,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
   const displayIncome = isAllTime ? lifetimeStats.totalIncome : monthlyStats.totalIncome;
   const displayExpense = isAllTime ? lifetimeStats.totalExpense : monthlyStats.totalExpense;
   const displaySavings = isAllTime ? lifetimeStats.totalSavings : monthlyStats.totalSavings;
+  const displayTax = isAllTime ? lifetimeStats.totalTax : monthlyStats.totalTax;
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -235,8 +237,8 @@ export const WalletView: React.FC<WalletViewProps> = ({
           </div>
         </div>
 
-        {/* 3 Subordinate Columns: Income, Spending, Savings */}
-        <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/5">
+        {/* 4 Subordinate Columns: Income, Spending, Savings, Tax */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-white/5">
           {/* Income */}
           <div className="p-3 rounded-2xl bg-[#101014]/90 border border-emerald-500/20 flex flex-col justify-between">
             <div className="flex items-center gap-1 text-emerald-400 text-[10px] font-bold uppercase">
@@ -267,6 +269,16 @@ export const WalletView: React.FC<WalletViewProps> = ({
             </div>
             <div className="text-xs sm:text-sm font-black text-violet-300 mt-1 truncate">
               <AnimatedNumber value={displaySavings} />
+            </div>
+          </div>
+
+          {/* Tax */}
+          <div className="p-3 rounded-2xl bg-[#101014]/90 border border-amber-500/25 flex flex-col justify-between">
+            <div className="flex items-center gap-1 text-amber-400 text-[10px] font-bold uppercase">
+              <Landmark size={12} /> Tax Paid
+            </div>
+            <div className="text-xs sm:text-sm font-black text-amber-300 mt-1 truncate">
+              <AnimatedNumber value={displayTax} />
             </div>
           </div>
         </div>

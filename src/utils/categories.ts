@@ -8,12 +8,14 @@ import {
   Heart, 
   Briefcase, 
   TrendingUp, 
+  Landmark,
   HelpCircle
 } from 'lucide-react';
 
 export const PREDEFINED_CATEGORIES = [
   { name: 'Food', iconName: 'Coffee', color: 'text-amber-400 bg-amber-400/10' },
   { name: 'Rent', iconName: 'Home', color: 'text-blue-400 bg-blue-400/10' },
+  { name: 'Tax', iconName: 'Landmark', color: 'text-amber-400 bg-amber-400/10' },
   { name: 'Shopping', iconName: 'ShoppingBag', color: 'text-pink-400 bg-pink-400/10' },
   { name: 'Transport', iconName: 'Car', color: 'text-teal-400 bg-teal-400/10' },
   { name: 'Utilities', iconName: 'Zap', color: 'text-yellow-400 bg-yellow-400/10' },
@@ -32,6 +34,7 @@ export const getCategoryIcon = (category: string) => {
 
   let icon = HelpCircle;
   if (c.includes('food') || c.includes('eat') || c.includes('dining') || c.includes('coffee')) icon = Coffee;
+  else if (c.includes('tax') || c.includes('fbr') || c.includes('duty') || c.includes('levy')) icon = Landmark;
   else if (c.includes('rent') || c.includes('home') || c.includes('house')) icon = Home;
   else if (c.includes('shop') || c.includes('cloth') || c.includes('apparel') || c.includes('grocery')) icon = ShoppingBag;
   else if (c.includes('transport') || c.includes('car') || c.includes('fuel') || c.includes('travel') || c.includes('bike')) icon = Car;

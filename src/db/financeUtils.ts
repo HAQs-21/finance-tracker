@@ -24,6 +24,10 @@ export const calculateOverallStats = (
     return s.type === 'DEPOSIT' ? sum + s.amount : sum - s.amount;
   }, 0);
 
+  const totalTax = validTransactions
+    .filter((t) => t.type === 'EXPENSE' && t.category.trim().toLowerCase() === 'tax')
+    .reduce((sum, t) => sum + t.amount, 0);
+
   const vaultBalance = savings.reduce((sum, s) => {
     return s.type === 'DEPOSIT' ? sum + s.amount : sum - s.amount;
   }, 0);
@@ -32,6 +36,7 @@ export const calculateOverallStats = (
     totalIncome: stats.totalIncome,
     totalExpense: stats.totalExpense,
     totalSavings,
+    totalTax,
     balance: stats.totalIncome - stats.totalExpense - totalSavings,
     totalCash: stats.totalIncome - stats.totalExpense,
     vaultBalance
@@ -66,6 +71,10 @@ export const calculateMonthlyStats = (
     return s.type === 'DEPOSIT' ? sum + s.amount : sum - s.amount;
   }, 0);
 
+  const monthlyTax = validMonthlyTransactions
+    .filter((t) => t.type === 'EXPENSE' && t.category.trim().toLowerCase() === 'tax')
+    .reduce((sum, t) => sum + t.amount, 0);
+
   const lifetimeVaultBalance = savings.reduce((sum, s) => {
     return s.type === 'DEPOSIT' ? sum + s.amount : sum - s.amount;
   }, 0);
@@ -74,6 +83,7 @@ export const calculateMonthlyStats = (
     totalIncome: stats.totalIncome,
     totalExpense: stats.totalExpense,
     totalSavings: monthlyNetSavings,
+    totalTax: monthlyTax,
     balance: stats.totalIncome - stats.totalExpense - monthlyNetSavings,
     totalCash: stats.totalIncome - stats.totalExpense,
     vaultBalance: lifetimeVaultBalance

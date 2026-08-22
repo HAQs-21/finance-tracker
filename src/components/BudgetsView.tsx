@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, X, Edit2, Trash2, Check, AlertTriangle, Target, ChevronDown, CheckCircle2, PieChart } from 'lucide-react';
+import { Plus, X, Edit2, Trash2, Check, AlertTriangle, Target, ChevronDown, CheckCircle2, PieChart, Landmark } from 'lucide-react';
 import { BottomSheet } from './ui/BottomSheet';
 import { Button } from './ui/Button';
 import { PREDEFINED_CATEGORIES, getCategoryIcon } from '../utils/categories';
@@ -213,6 +213,8 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
   // --- ALL-TIME EXPENSES VIEW ---
   if (isAllTime) {
     const totalLifetimeSpend = stats.reduce((sum, s) => sum + s.amount, 0);
+    const taxStat = stats.find((s) => s.category.trim().toLowerCase() === 'tax');
+    const totalTaxPaid = taxStat ? taxStat.amount : 0;
 
     return (
       <div className="space-y-4 animate-fade-in pb-4">
@@ -227,6 +229,24 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
           <p className="text-[10px] text-zinc-500 font-medium">
             Showing all categories and spending across all time. Select a specific month in header to set and track monthly budget limits.
           </p>
+        </div>
+
+        {/* Dedicated Tax Section Card */}
+        <div className="p-4 rounded-3xl bg-[#14121a] border border-amber-500/25 shadow-lg space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                <Landmark size={16} />
+              </div>
+              <div>
+                <div className="text-xs font-black text-white uppercase tracking-wider">Tax Paid</div>
+                <div className="text-[10px] text-zinc-400 font-medium">Total recorded tax payments</div>
+              </div>
+            </div>
+            <div className="text-lg font-black text-amber-300 tabular-nums">
+              {formatCurrency(totalTaxPaid)}
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center justify-between px-1 pt-1">
