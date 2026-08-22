@@ -282,7 +282,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
           <button
             type="button"
             onClick={() => setShowTotalCash((prev) => !prev)}
-            className="w-full flex items-center justify-between p-3 rounded-2xl bg-[#101014]/80 hover:bg-[#15151c] border border-white/5 hover:border-white/10 transition-all cursor-pointer pressable select-none group"
+            className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-[#101014]/80 hover:bg-[#15151c] border border-white/5 hover:border-white/10 transition-all cursor-pointer pressable select-none group"
           >
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
@@ -290,9 +290,6 @@ export const WalletView: React.FC<WalletViewProps> = ({
               </div>
               <span className="text-xs font-bold text-zinc-300 group-hover:text-white transition-colors">
                 Total amount
-              </span>
-              <span className="text-[10px] text-zinc-500 font-medium">
-                (Wallet + Savings)
               </span>
             </div>
 
@@ -309,23 +306,6 @@ export const WalletView: React.FC<WalletViewProps> = ({
               {showTotalCash && <ChevronUp size={13} className="text-zinc-400" />}
             </div>
           </button>
-
-          {showTotalCash && (
-            <div className="mt-2 p-3.5 rounded-2xl bg-[#0d0d12] border border-white/5 animate-fade-in grid grid-cols-2 gap-3">
-              <div>
-                <div className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">In Hand (Wallet)</div>
-                <div className="text-xs sm:text-sm font-black text-zinc-200 tabular-nums mt-0.5">
-                  {formatCurrency(balance)}
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] font-bold text-violet-400 uppercase tracking-wider">In Savings (Vault)</div>
-                <div className="text-xs sm:text-sm font-black text-violet-300 tabular-nums mt-0.5">
-                  {formatCurrency(lifetimeStats.totalSavings)}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </section>
 
