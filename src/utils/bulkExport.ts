@@ -50,7 +50,19 @@ export function exportTransactionsToText(transactions: Transaction[]): string {
       if (t.amount >= 1000 && t.amount % 1000 === 0) {
         amtStr = `${t.amount / 1000}k`;
       }
-      output += `${amtStr} ${t.description || t.category}\n`;
+      
+      const desc = (t.description || t.category || '').trim();
+      const cat = (t.category || '').trim();
+
+      if (cat && cat !== 'General' && cat !== 'Imported' && cat !== 'Income') {
+        if (desc.toLowerCase().includes(cat.toLowerCase())) {
+          output += `${amtStr} ${desc}\n`;
+        } else {
+          output += `${amtStr} ${desc} [${cat}]\n`;
+        }
+      } else {
+        output += `${amtStr} ${desc}\n`;
+      }
     });
     
     output += `\n`;

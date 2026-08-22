@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Plus, X, Edit2, Trash2, Check, AlertTriangle, Target, ChevronDown, CheckCircle2, PieChart } from 'lucide-react';
 import { BottomSheet } from './ui/BottomSheet';
 import { Button } from './ui/Button';
@@ -36,8 +36,37 @@ export const BudgetsView: React.FC<BudgetsViewProps> = ({
 
   // Filter budgets relevant to the current month or default
   const activeMonthBudgets = useMemo(() => {
-    if (isAllTime) return budgets;
-    return budgets.filter((b) => !b.month || b.month === 'DEFAULT' || b.month === currentMonth);
+    if (isAllTime) {
+      const map = new Map<string, Budget>();
+      budgets.forEach((b) => {
+        const baseName = b.category.split('@')[0].trim();
+        map.set(baseName.toLowerCase(), {
+          category: baseName,
+          amount: b.amount,
+          month: b.month
+        });
+      });
+      return Array.from(map.values());
+    }
+
+    // First collect default budgets, then override with month-specific ones
+    const budgetMap = new Map<string, Budget>();
+    
+    budgets.forEach((b) => {
+      const parts = b.category.split('@');
+      const baseName = parts[0].trim();
+      const monthPart = parts[1] || b.month || 'DEFAULT';
+
+      if (monthPart === 'DEFAULT') {
+        if (!budgetMap.has(baseName.toLowerCase())) {
+          budgetMap.set(baseName.toLowerCase(), { category: baseName, amount: b.amount, month: 'DEFAULT' });
+        }
+      } else if (monthPart === currentMonth) {
+        budgetMap.set(baseName.toLowerCase(), { category: baseName, amount: b.amount, month: currentMonth });
+      }
+    });
+
+    return Array.from(budgetMap.values());
   }, [budgets, currentMonth, isAllTime]);
 
   // Map spending by normalized category name

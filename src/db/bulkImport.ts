@@ -95,39 +95,78 @@ export async function parseTextToPreview(rawText: string): Promise<ParseResult> 
     }
 
     let amount = -1;
-    let description = '';
+    let rawDesc = '';
     let isZeroRule = false;
 
     if (lowerLine.includes('(0 me')) {
       amount = 0;
-      description = trimmed;
+      rawDesc = trimmed;
       isZeroRule = true;
     } else {
       // Bracket rule: extract first number-like string inside brackets
       const bracketMatch = trimmed.match(/\(\s*(\d+(?:\.\d+)?k?)/i);
       if (bracketMatch) {
         amount = parseVal(bracketMatch[1]);
-        description = trimmed;
+        rawDesc = trimmed;
       } else {
         // Standard rule: [Optional bullets -*•#>] Amount Description
         const standardMatch = trimmed.match(/^[\s\-*•#>]*(\d+(?:\.\d+)?k?)\s+(.+)$/i);
         if (standardMatch) {
           amount = parseVal(standardMatch[1]);
-          description = standardMatch[2];
+          rawDesc = standardMatch[2];
         }
       }
     }
 
-    const hasLetters = /[a-zA-Z]/.test(description);
+    const hasLetters = /[a-zA-Z]/.test(rawDesc);
     const isValidAmount = isZeroRule || (amount > 0);
 
     if (isValidAmount && hasLetters) {
+      let finalCategory = 'General';
+      let cleanDesc = rawDesc.trim();
+
+      // 1. Check for explicit bracket tag: e.g. "Dinner [Food]" or "[Food] Dinner"
+      const bracketTagMatch = cleanDesc.match(/\[([a-zA-Z\s]+)\]/);
+      if (bracketTagMatch) {
+        finalCategory = bracketTagMatch[1].trim();
+        cleanDesc = cleanDesc.replace(bracketTagMatch[0], '').trim();
+      } else {
+        // 2. Check for hash tag: e.g. "Dinner #Food"
+        const hashTagMatch = cleanDesc.match(/#([a-zA-Z]+)/);
+        if (hashTagMatch) {
+          finalCategory = hashTagMatch[1].trim();
+          cleanDesc = cleanDesc.replace(hashTagMatch[0], '').trim();
+        } else {
+          // 3. Smart Keyword Categorization
+          const descLower = cleanDesc.toLowerCase();
+          if (descLower.match(/\b(food|eat|dining|coffee|lunch|dinner|breakfast|pizza|burger|cafe|restaurant|grocery|groceries|snack|tea|milk|bread|fruit|vegetable)\b/)) {
+            finalCategory = 'Food';
+          } else if (descLower.match(/\b(rent|home|house|apartment|flat)\b/)) {
+            finalCategory = 'Rent';
+          } else if (descLower.match(/\b(transport|car|fuel|petrol|diesel|cng|uber|careem|indrive|taxi|bus|metro|train|bike|flight|travel)\b/)) {
+            finalCategory = 'Transport';
+          } else if (descLower.match(/\b(shop|shopping|cloth|clothes|apparel|shirt|pant|shoes|bag|amazon|daraz|store|mall)\b/)) {
+            finalCategory = 'Shopping';
+          } else if (descLower.match(/\b(util|utilities|bill|electricity|wapda|water|gas|wifi|internet|ptcl|mobile bill|load)\b/)) {
+            finalCategory = 'Utilities';
+          } else if (descLower.match(/\b(entertain|entertainment|movie|cinema|film|game|gaming|steam|netflix|spotify|youtube|party|fun)\b/)) {
+            finalCategory = 'Entertainment';
+          } else if (descLower.match(/\b(medic|medical|medicine|health|doctor|hospital|clinic|pharmacy|drugs|pills|dentist|lab|test)\b/)) {
+            finalCategory = 'Medical';
+          } else if (descLower.match(/\b(salary|wage|freelance|client|profit)\b/)) {
+            finalCategory = 'Salary';
+          } else if (descLower.match(/\b(invest|investments|stock|crypto|bitcoin|gold|fund|shares)\b/)) {
+            finalCategory = 'Investments';
+          }
+        }
+      }
+
       transactions.push({
         amount,
         type: 'EXPENSE',
-        category: 'Imported',
+        category: finalCategory,
         date: `${currentYear}-${currentMonth}-15`,
-        description: description.trim()
+        description: cleanDesc || finalCategory
       });
     } else {
       failedLines.push(line);

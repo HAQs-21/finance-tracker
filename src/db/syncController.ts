@@ -34,7 +34,19 @@ export async function syncPull() {
 
     await db.budgets.clear();
     if (remoteBudgets.length > 0) {
-      await db.budgets.bulkAdd(remoteBudgets);
+      const budgetMap = new Map<string, Budget>();
+      for (const b of remoteBudgets) {
+        if (b.category) {
+          budgetMap.set(b.category, {
+            category: b.category,
+            amount: b.amount,
+            month: b.month || 'DEFAULT'
+          });
+        }
+      }
+      if (budgetMap.size > 0) {
+        await db.budgets.bulkAdd(Array.from(budgetMap.values()));
+      }
     }
 
     await db.savings.clear();

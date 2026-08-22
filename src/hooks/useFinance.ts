@@ -86,33 +86,18 @@ export function useFinance() {
     },
     setBudget: async (data: Budget) => {
       const monthKey = data.month || 'DEFAULT';
-      // Find existing budget for this category and month
-      const existing = await db.budgets
-        .filter((b) => b.category.toLowerCase() === data.category.toLowerCase() && (b.month || 'DEFAULT') === monthKey)
-        .first();
-
-      if (existing && existing.id) {
-        return await db.budgets.update(existing.id, {
-          amount: data.amount,
-          month: monthKey
-        });
-      }
-      return await db.budgets.add({
-        category: data.category.trim(),
+      const storageKey = monthKey !== 'DEFAULT' ? `${data.category.trim()}@${monthKey}` : data.category.trim();
+      return await db.budgets.put({
+        category: storageKey,
         amount: data.amount,
         month: monthKey
       });
     },
     deleteBudget: async (category: string, month?: string) => {
       const monthKey = month || 'DEFAULT';
-      const toDelete = await db.budgets
-        .filter((b) => b.category.toLowerCase() === category.toLowerCase() && (!month || (b.month || 'DEFAULT') === monthKey))
-        .toArray();
-
-      for (const item of toDelete) {
-        if (item.id) await db.budgets.delete(item.id);
-        else await db.budgets.where('category').equals(category).delete();
-      }
+      const storageKey = monthKey !== 'DEFAULT' ? `${category.trim()}@${monthKey}` : category.trim();
+      await db.budgets.delete(storageKey);
+      await db.budgets.delete(category.trim());
     }
   };
 }
