@@ -38,7 +38,7 @@ export async function parseTextToPreview(rawText: string): Promise<ParseResult> 
 
     const lowerLine = trimmed.toLowerCase();
 
-    // Pattern: Month [Year] (IncomeExpression) e.g. "January 2025 (80k+10k)" or "January (80k+10k)"
+    // Pattern: Month [Year] (IncomeExpression) e.g. "January 2026 (9k+87200)" or "January (80k+10k)"
     const monthIncomeMatch = trimmed.match(/^([a-zA-Z]+)(?:\s+(\d{4}))?\s*\(([\d+k.\s]+)\)/i);
     if (monthIncomeMatch) {
       const monthName = monthIncomeMatch[1].toLowerCase();
@@ -65,7 +65,27 @@ export async function parseTextToPreview(rawText: string): Promise<ParseResult> 
       }
     }
 
-    // Pattern: Simple Month Header, e.g. "January 2025" or "February"
+    // Pattern: Standalone Income Expression on its own line e.g. "(28600)" or "(9k+87200)" or "Income: (80k)"
+    const standaloneIncomeMatch = trimmed.match(/^(?:income:\s*)?\(([\d+k.\s]+)\)$/i);
+    if (standaloneIncomeMatch) {
+      const expression = standaloneIncomeMatch[1];
+      const parts = expression.split('+');
+      parts.forEach(part => {
+        const amount = parseVal(part);
+        if (amount > 0) {
+          transactions.push({
+            amount,
+            type: 'INCOME',
+            category: 'Income',
+            date: `${currentYear}-${currentMonth}-01`,
+            description: `Income`
+          });
+        }
+      });
+      continue;
+    }
+
+    // Pattern: Simple Month Header, e.g. "January 2026" or "February"
     const monthHeaderMatch = trimmed.match(/^([a-zA-Z]+)(?:\s+(\d{4}))?$/i);
     if (monthHeaderMatch) {
       const monthName = monthHeaderMatch[1].toLowerCase();
@@ -96,16 +116,15 @@ export async function parseTextToPreview(rawText: string): Promise<ParseResult> 
 
     let amount = -1;
     let rawDesc = '';
-    let isZeroRule = false;
 
-    if (lowerLine.includes('(0 me')) {
+    if (lowerLine.includes('(0 me') || lowerLine.startsWith('0 ')) {
+      const zeroMatch = trimmed.match(/^[\s\-*•#>]*0\s+(.+)$/i);
       amount = 0;
-      rawDesc = trimmed;
-      isZeroRule = true;
+      rawDesc = zeroMatch ? zeroMatch[1] : trimmed;
     } else {
       // Bracket rule: extract first number-like string inside brackets
       const bracketMatch = trimmed.match(/\(\s*(\d+(?:\.\d+)?k?)/i);
-      if (bracketMatch) {
+      if (bracketMatch && !trimmed.startsWith('(')) {
         amount = parseVal(bracketMatch[1]);
         rawDesc = trimmed;
       } else {
@@ -119,7 +138,7 @@ export async function parseTextToPreview(rawText: string): Promise<ParseResult> 
     }
 
     const hasLetters = /[a-zA-Z]/.test(rawDesc);
-    const isValidAmount = isZeroRule || (amount > 0);
+    const isValidAmount = amount >= 0;
 
     if (isValidAmount && hasLetters) {
       let finalCategory = 'General';
