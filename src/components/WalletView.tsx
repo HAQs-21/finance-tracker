@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useCallback, memo } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import { Virtuoso } from 'react-virtuoso';
 import { 
   Plus, 
@@ -205,8 +205,8 @@ export const WalletView: React.FC<WalletViewProps> = ({
   }, [sortedList, sortType, collapsedDates]);
 
   // Financial values:
-  // As requested: The top balance is ALWAYS all-time total balance!
-  const totalBalance = lifetimeStats.balance;
+  const totalCash = lifetimeStats.totalCash;
+  const inHandCash = lifetimeStats.balance;
   const displayIncome = isAllTime ? lifetimeStats.totalIncome : monthlyStats.totalIncome;
   const displayExpense = isAllTime ? lifetimeStats.totalExpense : monthlyStats.totalExpense;
   const displaySavings = isAllTime ? lifetimeStats.totalSavings : monthlyStats.totalSavings;
@@ -214,22 +214,31 @@ export const WalletView: React.FC<WalletViewProps> = ({
   return (
     <div className="space-y-4 animate-fade-in">
       {/* --- SIMPLIFIED FINANCIAL HEADER --- */}
-      <section className="bg-gradient-to-b from-[#161224] to-[#0e0c14] p-5 rounded-3xl border border-violet-500/20 shadow-xl shadow-black/40 space-y-4">
-        {/* Top: Balance (Always All-Time Balance) */}
-        <div>
-          <div className="flex items-center gap-1.5 text-zinc-400 text-[10px] font-bold uppercase tracking-wider">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <span>Balance</span>
+      <section className="bg-gradient-to-b from-[#1b152d] via-[#120e20] to-[#0a0812] p-5 rounded-3xl border border-violet-500/30 shadow-2xl shadow-violet-950/30 space-y-4">
+        {/* Top: Total Cash (Prominent, High-Contrast Hero Number) */}
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-1.5 text-zinc-300 text-[10px] font-black uppercase tracking-wider">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Total Cash</span>
+            </div>
+            <div className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-1 drop-shadow-md">
+              <AnimatedNumber value={totalCash} />
+            </div>
           </div>
-          <div className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-0.5">
-            <AnimatedNumber value={totalBalance} />
+
+          <div className="text-right bg-white/[0.04] border border-white/10 px-3 py-1.5 rounded-2xl">
+            <div className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">In Hand</div>
+            <div className="text-xs sm:text-sm font-black text-zinc-200 tabular-nums mt-0.5">
+              {formatCurrency(inHandCash)}
+            </div>
           </div>
         </div>
 
         {/* 3 Subordinate Columns: Income, Spending, Savings */}
         <div className="grid grid-cols-3 gap-2 pt-1 border-t border-white/5">
           {/* Income */}
-          <div className="p-3 rounded-2xl bg-[#101014]/80 border border-emerald-500/15 flex flex-col justify-between">
+          <div className="p-3 rounded-2xl bg-[#101014]/90 border border-emerald-500/20 flex flex-col justify-between">
             <div className="flex items-center gap-1 text-emerald-400 text-[10px] font-bold uppercase">
               <ArrowUpRight size={12} /> Income
             </div>
@@ -239,7 +248,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
           </div>
 
           {/* Spending */}
-          <div className="p-3 rounded-2xl bg-[#101014]/80 border border-rose-500/15 flex flex-col justify-between">
+          <div className="p-3 rounded-2xl bg-[#101014]/90 border border-rose-500/20 flex flex-col justify-between">
             <div className="flex items-center gap-1 text-rose-400 text-[10px] font-bold uppercase">
               <ArrowDownLeft size={12} /> Spending
             </div>
@@ -251,7 +260,7 @@ export const WalletView: React.FC<WalletViewProps> = ({
           {/* Savings */}
           <div
             onClick={onOpenVault}
-            className="p-3 rounded-2xl bg-[#101014]/80 border border-violet-500/20 cursor-pointer hover:border-violet-500/40 transition-colors pressable flex flex-col justify-between"
+            className="p-3 rounded-2xl bg-[#101014]/90 border border-violet-500/25 cursor-pointer hover:border-violet-500/50 transition-colors pressable flex flex-col justify-between"
           >
             <div className="flex items-center gap-1 text-violet-400 text-[10px] font-bold uppercase">
               <PiggyBank size={12} /> Savings

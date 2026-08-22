@@ -158,7 +158,7 @@ export const VaultView: React.FC<VaultViewProps> = ({
 
             <div className="p-4 rounded-3xl bg-[#101014] border border-white/5 flex flex-col justify-between">
               <div className="text-zinc-500 text-[10px] font-bold uppercase tracking-wider">
-                Available Cash
+                In Hand
               </div>
               <div className="text-xl sm:text-2xl font-black text-zinc-300 mt-1 tabular-nums">
                 {formatCurrency(walletBalance)}

@@ -29,7 +29,8 @@ export interface SummaryStats {
   totalIncome: number;
   totalExpense: number;
   totalSavings: number;
-  balance: number;
+  balance: number; // Cash in hand
+  totalCash: number; // Total cash across wallet & savings
   vaultBalance: number;
 }
 

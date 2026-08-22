@@ -33,6 +33,7 @@ export const calculateOverallStats = (
     totalExpense: stats.totalExpense,
     totalSavings,
     balance: stats.totalIncome - stats.totalExpense - totalSavings,
+    totalCash: stats.totalIncome - stats.totalExpense,
     vaultBalance
   };
 };
@@ -74,6 +75,7 @@ export const calculateMonthlyStats = (
     totalExpense: stats.totalExpense,
     totalSavings: monthlyNetSavings,
     balance: stats.totalIncome - stats.totalExpense - monthlyNetSavings,
+    totalCash: stats.totalIncome - stats.totalExpense,
     vaultBalance: lifetimeVaultBalance
   };
 };

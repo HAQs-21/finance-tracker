@@ -1,4 +1,4 @@
-﻿import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx';
 import type { Transaction, SavingsRecord } from '../types';
 import { isPureTransaction } from '../db/financeUtils';
 
@@ -64,7 +64,8 @@ export function exportToExcel(
       'Income (PKR)': income,
       'Expense (PKR)': expense,
       'Saved (PKR)': saved,
-      'Net Left (PKR)': income - expense - saved
+      'In Hand (PKR)': income - expense - saved,
+      'Total Cash (PKR)': income - expense
     };
   });
 
@@ -73,7 +74,8 @@ export function exportToExcel(
     'Income (PKR)': 0,
     'Expense (PKR)': 0,
     'Saved (PKR)': 0,
-    'Net Left (PKR)': 0
+    'In Hand (PKR)': 0,
+    'Total Cash (PKR)': 0
   }]);
 
   wsMonthly['!cols'] = [
@@ -81,6 +83,7 @@ export function exportToExcel(
     { wch: 16 },
     { wch: 16 },
     { wch: 14 },
+    { wch: 16 },
     { wch: 16 }
   ];
   XLSX.utils.book_append_sheet(wb, wsMonthly, 'Monthly Summary');
