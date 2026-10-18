@@ -9,6 +9,9 @@ const workspace = path.resolve(
   "..",
 );
 const repository = "HAQs-21/finance-tracker";
+const packageInfo = JSON.parse(
+  await readFile(path.join(workspace, "package.json"), "utf8"),
+);
 const argumentsList = process.argv.slice(2);
 const argument = (name, fallback) => {
   const position = argumentsList.indexOf(name);
@@ -16,10 +19,10 @@ const argument = (name, fallback) => {
 };
 const publish = argumentsList.includes("--publish");
 const enablePages = argumentsList.includes("--enable-pages");
-const tag = argument("--tag", "v1.0.0");
+const tag = argument("--tag", `v${packageInfo.version}`);
 const apkPath = path.resolve(
   workspace,
-  argument("--apk", "dist-apk/Morrow-1.0.0.apk"),
+  argument("--apk", `dist-apk/Morrow-${packageInfo.version}.apk`),
 );
 const notesFile = argument("--notes-file");
 

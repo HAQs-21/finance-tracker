@@ -62,7 +62,8 @@ try {
 
 $outputDirectory = Join-Path $workspace 'dist-apk'
 New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
-$apkName = if ($DebugBuild) { 'Morrow-1.0.0-development.apk' } else { 'Morrow-1.0.0.apk' }
+$appVersion = (Get-Content -LiteralPath (Join-Path $workspace 'package.json') -Raw | ConvertFrom-Json).version
+$apkName = if ($DebugBuild) { "Morrow-$appVersion-development.apk" } else { "Morrow-$appVersion.apk" }
 $apkPath = Join-Path $outputDirectory $apkName
 $variantDirectory = $variant.ToLowerInvariant()
 $builtApk = Join-Path $workspace "android\app\build\outputs\apk\$variantDirectory\app-$variantDirectory.apk"

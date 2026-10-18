@@ -306,9 +306,11 @@ class NativeAdapter implements Adapter {
           false,
         );
     if (!(await connection.isDBOpen()).result) await connection.open();
+    // journal_mode returns a row even when assigning it. Android's execSQL
+    // rejects row-returning statements, so this must use the query bridge.
+    await connection.query("PRAGMA journal_mode=WAL");
     await connection.execute(
       `
-      PRAGMA journal_mode=WAL;
       CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS archives (id TEXT PRIMARY KEY, data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS categories (id TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT, icon TEXT, archived INTEGER, data TEXT NOT NULL);

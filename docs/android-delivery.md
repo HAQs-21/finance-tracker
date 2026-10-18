@@ -11,7 +11,7 @@ npm ci
 npm run android:apk
 ```
 
-The script builds relative-path web assets, syncs Capacitor, compiles the Android application, runs Android lint, and writes `dist-apk/Morrow-1.0.0.apk` with a SHA-256 checksum. Set `JAVA_HOME` and `ANDROID_HOME` when installed in nonstandard locations. Open `android/` in Android Studio for device profiling and native development.
+The script builds relative-path web assets, syncs Capacitor, compiles the Android application, runs Android lint, and writes `dist-apk/Morrow-<version>.apk` with a SHA-256 checksum. The filename uses the version in package.json. Set `JAVA_HOME` and `ANDROID_HOME` when installed in nonstandard locations. Open `android/` in Android Studio for device profiling and native development.
 
 ## Install and updates
 
@@ -27,7 +27,7 @@ An APK update does not copy or synchronize records from another installation. Ex
 
 ## Continuous delivery
 
-Every push to `master` verifies the financial tests, desktop and phone browser flows, lint, and browser production build. The Android workflow builds an installable APK artifact after verification. The Pages workflow publishes the browser version at the repository's GitHub Pages address when Pages is configured to use GitHub Actions.
+Every push to `master` verifies the financial tests, desktop and phone browser flows, lint, and browser production build. The Android workflow builds and lints an installable APK, then runs `NativeLedgerTest` in an Android 15 emulator. It covers the actual WebView-to-SQLite bridge, export, complete and legacy JSON restores, restart persistence, and damaged-database recovery. The test uses synthetic records and refuses to run on physical hardware. For local execution, use a disposable emulator and run `:app:connectedDebugAndroidTest` from `android/`. The Pages workflow publishes the browser version at the repository's GitHub Pages address when Pages is configured to use GitHub Actions.
 
 APK artifacts are downloadable from the successful GitHub Actions run under **Morrow-Android-Release-APK** or **Morrow-Android-Debug-APK**. Development files have a `-development.apk` suffix. These workflows do not contain credentials or automatically overwrite personal finance backups.
 
