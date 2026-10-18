@@ -78,8 +78,8 @@ textarea {
   width: 100%;
   outline: none;
   transition:
-    border-color 0.2s,
-    background 0.2s;
+    border-color calc(0.2s * var(--motion-duration, 1)),
+    background calc(0.2s * var(--motion-duration, 1));
 }
 input:focus,
 select:focus,
@@ -168,9 +168,9 @@ em {
   border-radius: 50%;
   color: #a6a7a3;
   transition:
-    background 0.2s,
-    color 0.2s,
-    transform 0.2s;
+    background calc(0.2s * var(--motion-duration, 1)),
+    color calc(0.2s * var(--motion-duration, 1)),
+    transform calc(0.2s * var(--motion-duration, 1));
 }
 .icon-button:hover {
   background: #ffffff09;
@@ -191,9 +191,9 @@ em {
   font-size: 12px;
   font-weight: 600;
   transition:
-    background 0.18s,
-    transform 0.18s,
-    box-shadow 0.18s;
+    background calc(0.18s * var(--motion-duration, 1)),
+    transform calc(0.18s * var(--motion-duration, 1)),
+    box-shadow calc(0.18s * var(--motion-duration, 1));
   white-space: nowrap;
 }
 .button:active:not(:disabled) {
@@ -516,15 +516,15 @@ em {
   font-size: 11px;
   box-shadow: 0 5px 25px #0005;
   transition:
-    background 0.2s,
-    transform 0.2s;
+    background calc(0.2s * var(--motion-duration, 1)),
+    transform calc(0.2s * var(--motion-duration, 1));
 }
 .add-button:hover {
   background: #f0d2ad;
   transform: translateY(-2px);
 }
 .add-button svg {
-  transition: transform 0.25s;
+  transition: transform calc(0.25s * var(--motion-duration, 1));
 }
 .add-button.opened svg {
   transform: rotate(45deg);
@@ -683,7 +683,7 @@ em {
   width: 40%;
   height: 100%;
   background: var(--copper);
-  animation: loading 1.4s ease-in-out infinite;
+  animation: loading calc(1.4s * var(--motion-duration, 1)) ease-in-out infinite;
 }
 .page-skeleton {
   display: grid;
@@ -695,7 +695,8 @@ em {
   border: 1px solid #3d442f;
   border-radius: 12px;
   background: #1a2116;
-  animation: skeleton 1.4s ease-in-out infinite alternate;
+  animation: skeleton calc(1.4s * var(--motion-duration, 1)) ease-in-out
+    infinite alternate;
 }
 .page-skeleton > div:first-child {
   grid-column: 1/-1;

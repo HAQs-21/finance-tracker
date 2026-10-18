@@ -147,7 +147,7 @@
   border-bottom: 1px solid #515048;
   padding: 2px 0 12px;
   margin-bottom: 5px;
-  transition: border-color 0.2s;
+  transition: border-color calc(0.2s * var(--motion-duration, 1));
 }
 .amount-input:focus-within {
   border-color: #d9ad86;
@@ -256,7 +256,7 @@
   border: 1.5px solid currentColor;
   border-top-color: transparent;
   border-radius: 50%;
-  animation: spin 0.65s linear infinite;
+  animation: spin calc(0.65s * var(--motion-duration, 1)) linear infinite;
 }
 .scope-picker {
   padding: 0;
@@ -285,8 +285,8 @@
   margin-bottom: 8px;
   cursor: pointer;
   transition:
-    background 0.18s,
-    border-color 0.18s;
+    background calc(0.18s * var(--motion-duration, 1)),
+    border-color calc(0.18s * var(--motion-duration, 1));
 }
 .scope-picker > label:hover {
   background: #232622;
@@ -358,8 +358,8 @@
   border-radius: 50%;
   color: #292a22;
   transition:
-    transform 0.18s,
-    box-shadow 0.18s;
+    transform calc(0.18s * var(--motion-duration, 1)),
+    box-shadow calc(0.18s * var(--motion-duration, 1));
 }
 .color-picker > button[aria-pressed="true"] {
   box-shadow:

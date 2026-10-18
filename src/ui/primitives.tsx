@@ -31,6 +31,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { formatMoney } from "../domain";
+import { useMotionSpeed } from "./motionSpeed";
+import { lockScroll } from "./scrollLock";
 
 const icons: Record<string, LucideIcon> = {
   utensils: Utensils,
@@ -84,6 +86,7 @@ export const Money = memo(function Money({
   hidden?: boolean;
 }) {
   const element = useRef<HTMLSpanElement>(null);
+  const speed = useMotionSpeed();
   const previous = useRef(value);
   const reduce = useReducedMotionConfig();
   const formatted = useMemo(() => formatMoney(value), [value]);
@@ -97,10 +100,10 @@ export const Money = memo(function Money({
         { transform: "translateY(-1px)", opacity: 1, offset: 0.8 },
         { transform: "translateY(0)", opacity: 1 },
       ],
-      { duration: 240, easing: "cubic-bezier(.16,1,.3,1)" },
+      { duration: 240 / speed, easing: "cubic-bezier(.16,1,.3,1)" },
     );
     return () => animation?.cancel();
-  }, [value, reduce, hidden]);
+  }, [value, reduce, hidden, speed]);
   return hidden ? (
     <span className={`money concealed ${className}`} aria-label="Amount hidden">
       ••••••
@@ -125,6 +128,7 @@ export function Sheet({
   wide?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const speed = useMotionSpeed();
   const controls = useDragControls();
   const [compact, setCompact] = useState(
     () => window.matchMedia("(max-width: 620px)").matches,
@@ -138,8 +142,7 @@ export function Sheet({
   }, []);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
-    const overflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlockScroll = lockScroll();
     const focusTimer = window.setTimeout(
       () =>
         (
@@ -171,7 +174,7 @@ export function Sheet({
     document.addEventListener("keydown", key);
     return () => {
       clearTimeout(focusTimer);
-      document.body.style.overflow = overflow;
+      unlockScroll();
       document.removeEventListener("keydown", key);
       previous?.focus();
     };
@@ -208,7 +211,7 @@ export function Sheet({
         initial={{ y: 28, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 20, opacity: 0 }}
-        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+        transition={{ duration: 0.22 / speed, ease: [0.16, 1, 0.3, 1] }}
       >
         <button
           className="sheet-grip"

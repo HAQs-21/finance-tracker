@@ -451,6 +451,42 @@ function Settings({
               }
             />
           </div>
+          <div className="animation-setting">
+            <label htmlFor="animation-speed">
+              Animation speed{" "}
+              <output>{preferences.animationSpeed.toFixed(1)}×</output>
+            </label>
+            <input
+              id="animation-speed"
+              aria-label="Animation speed"
+              aria-valuetext={`${preferences.animationSpeed.toFixed(1)} times`}
+              type="range"
+              min="0.1"
+              max="5"
+              step="0.1"
+              value={preferences.animationSpeed}
+              onChange={(event) =>
+                setPreferences((current) => ({
+                  ...current,
+                  animationSpeed: Number(event.target.value),
+                }))
+              }
+            />
+            <div>
+              <span>0.1× · slower</span>
+              <button
+                onClick={() =>
+                  setPreferences((current) => ({
+                    ...current,
+                    animationSpeed: 1,
+                  }))
+                }
+              >
+                Reset 1×
+              </button>
+              <span>5× · faster</span>
+            </div>
+          </div>
           <div className="setting-row">
             <div>
               <strong>

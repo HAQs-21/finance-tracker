@@ -20,7 +20,7 @@ async function navigate(
   const label = {
     "My plan": "Budgets",
     Activity: "Expenses",
-    Insights: "Reports",
+    Insights: "Insights",
     "My space": "Settings",
   }[tab];
   const navigation = page.getByRole("navigation", {
@@ -151,13 +151,11 @@ test("expense month navigation is shared and large category histories keep bound
     name: "Restore backup",
     exact: true,
   });
-  await restore
-    .locator('input[type="file"]')
-    .setInputFiles({
-      name: "large-ledger.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(serializeBackup(fixture)),
-    });
+  await restore.locator('input[type="file"]').setInputFiles({
+    name: "large-ledger.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(serializeBackup(fixture)),
+  });
   await restore
     .getByRole("button", { name: "Restore this backup", exact: true })
     .click();
@@ -263,6 +261,53 @@ async function readLedger(page: Page): Promise<FinanceState> {
     } as unknown as FinanceState;
   });
 }
+
+test("speed preference persists and overlapping Savings sheets release page scrolling", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await openApp(page);
+  await addEarnings(page, "30000", "Payout");
+  await createBudget(page, "Food", "8000");
+  await expect(page.getByText("Budget left", { exact: true })).toHaveCount(0);
+  await navigate(page, "My space");
+  const speed = page.getByRole("slider", {
+    name: "Animation speed",
+    exact: true,
+  });
+  await speed.fill("0.1");
+  await expect(speed).toHaveValue("0.1");
+  await page.reload();
+  await expect(speed).toHaveValue("0.1");
+  await navigate(page, "My plan");
+  await page.getByRole("button", { name: "Open Savings", exact: true }).click();
+  const savings = page.getByRole("dialog", { name: "Savings", exact: true });
+  await expect(
+    savings.getByText("Food · budget", { exact: true }),
+  ).toBeVisible();
+  await expect(savings.getByText("Payout", { exact: true })).toBeVisible();
+  await expect(savings.locator(".ledger-month")).toHaveCount(1);
+  await savings
+    .getByRole("button", { name: "Add earnings", exact: true })
+    .click();
+  const income = page.getByRole("dialog", {
+    name: "Add earnings",
+    exact: true,
+  });
+  await income
+    .getByRole("button", { name: "Close dialog", exact: true })
+    .click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect(page.locator("body")).not.toHaveCSS("overflow", "hidden");
+  await page.setViewportSize({ width: 390, height: 400 });
+  await page.evaluate(() => window.scrollTo(0, 250));
+  expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  await navigate(page, "My space");
+  await speed.fill("5");
+  await expect(speed).toHaveValue("5");
+  await page.getByRole("button", { name: "Reset 1×", exact: true }).click();
+  await expect(speed).toHaveValue("1");
+});
 
 function netSavings(state: FinanceState) {
   return state.journal.reduce((sum, entry) => sum + entry.savingsDelta, 0);

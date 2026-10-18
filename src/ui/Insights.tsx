@@ -4,6 +4,7 @@ import { getActiveEntries, formatMoney, type FinanceState } from "../domain";
 import { monthLabel } from "./dates";
 import { MonthPicker } from "./MonthPicker";
 import { CategoryIcon, EmptyState, Money } from "./primitives";
+import { useMotionSpeed } from "./motionSpeed";
 
 function Insights({
   state,
@@ -16,6 +17,7 @@ function Insights({
   setMonth: (month: string) => void;
   hidden: boolean;
 }) {
+  const speed = useMotionSpeed();
   const report = useMemo(() => {
     let income = 0,
       spent = 0,
@@ -84,7 +86,7 @@ function Insights({
   return (
     <div className="insights-page">
       <div className="page-heading">
-        <h1>Reports</h1>
+        <h1>Insights</h1>
         <MonthPicker
           value={month}
           onChange={setMonth}
@@ -92,20 +94,28 @@ function Insights({
           label="Choose report month"
         />
       </div>
-      <div className="insight-summary">
-        <div>
-          <p>Earnings</p>
-          <Money value={report.income} hidden={hidden} />
-        </div>
-        <div>
-          <p>Net spending</p>
+      <section className="insight-overview" aria-label="Period overview">
+        <div className="insight-spent">
+          <span>
+            Spent <small>after refunds</small>
+          </span>
           <Money value={report.spent} hidden={hidden} />
         </div>
-        <div>
-          <p>Average expense</p>
-          <Money value={report.average} hidden={hidden} />
+        <div className="insight-facts">
+          <div>
+            <span>Earned</span>
+            <Money value={report.income} hidden={hidden} />
+          </div>
+          <div>
+            <span>Per expense</span>
+            <Money value={report.average} hidden={hidden} />
+          </div>
+          <div>
+            <span>Expenses</span>
+            <strong>{hidden ? "••" : report.count}</strong>
+          </div>
         </div>
-      </div>
+      </section>
       <section className="chart-card">
         <div className="section-heading">
           <h2>Spending</h2>
@@ -142,7 +152,7 @@ function Insights({
                   <div
                     style={{
                       height: `${(Math.abs(point.amount) / Math.max(report.negativeMax, report.positiveMax)) * (signed ? 50 : 100)}%`,
-                      animationDelay: `${Math.min(index * 8, 150)}ms`,
+                      animationDelay: `${Math.min(index * 8, 150) / speed}ms`,
                     }}
                   />
                 </div>

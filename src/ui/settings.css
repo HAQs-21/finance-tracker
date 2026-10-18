@@ -120,8 +120,8 @@
   border-radius: 30px;
   background: #282c2d;
   transition:
-    background 0.2s ease,
-    border-color 0.2s ease;
+    background calc(0.2s * var(--motion-duration, 1)) ease,
+    border-color calc(0.2s * var(--motion-duration, 1)) ease;
   cursor: pointer;
 }
 .toggle > span {
@@ -133,8 +133,9 @@
   box-shadow: 0 1px 3px #0003;
   transform: translateX(0);
   transition:
-    transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1),
-    background 0.2s ease;
+    transform calc(0.22s * var(--motion-duration, 1))
+      cubic-bezier(0.2, 0.8, 0.2, 1),
+    background calc(0.2s * var(--motion-duration, 1)) ease;
 }
 .toggle.on {
   border-color: #d9ad86;
@@ -163,7 +164,7 @@
   border-radius: 0;
   cursor: pointer;
   font: inherit;
-  transition: background 0.15s ease;
+  transition: background calc(0.15s * var(--motion-duration, 1)) ease;
 }
 .settings-page .category-setting:hover {
   background: #ffffff04;
@@ -201,8 +202,8 @@
   color: #242724;
   cursor: pointer;
   transition:
-    transform 0.15s ease,
-    box-shadow 0.15s ease;
+    transform calc(0.15s * var(--motion-duration, 1)) ease,
+    box-shadow calc(0.15s * var(--motion-duration, 1)) ease;
 }
 .color-swatch:hover {
   transform: scale(1.1);

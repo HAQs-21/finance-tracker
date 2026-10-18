@@ -192,17 +192,6 @@ export const Plan = memo(function Plan({
           : [];
       })
     : [];
-  const left = active.reduce(
-    (total, budget) =>
-      total +
-      (historical
-        ? Math.max(
-            0,
-            budget.limit - (projection.budgets[budget.id]?.spent || 0),
-          )
-        : projection.budgets[budget.id]?.available || 0),
-    0,
-  );
   const fund = useCallback(
     async (id: string) => {
       setPending(id);
@@ -234,20 +223,6 @@ export const Plan = memo(function Plan({
           </span>
           <Money value={spent} hidden={hidden} />
         </button>
-        <div>
-          <span>
-            {future ? "Planned" : historical ? "Unused" : "Budget left"}
-          </span>
-          <Money
-            value={
-              future
-                ? active.reduce((sum, budget) => sum + budget.limit, 0) +
-                  drafts.reduce((sum, draft) => sum + draft.template.amount, 0)
-                : left
-            }
-            hidden={hidden}
-          />
-        </div>
       </section>
       <div className="plan-actions">
         <button className="button secondary" onClick={onIncome}>

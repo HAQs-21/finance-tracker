@@ -892,7 +892,12 @@ export function SavingsSheet({
             />
           }
         >
-          <LedgerList entries={entries} hidden={hidden} savings />
+          <LedgerList
+            entries={entries}
+            hidden={hidden}
+            savings
+            categories={state.categories}
+          />
         </Suspense>
         {!entries.length && (
           <EmptyState

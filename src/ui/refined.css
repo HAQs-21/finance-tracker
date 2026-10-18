@@ -1,4 +1,135 @@
 /* Motion stays on compositor properties; no full-screen blur or layout projection. */
+.animation-setting {
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+}
+.animation-setting label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+.animation-setting output {
+  color: var(--copper);
+  font-variant-numeric: tabular-nums;
+}
+body .animation-setting input {
+  padding: 12px 0;
+  border: 0;
+  accent-color: var(--copper);
+  background: transparent;
+  min-height: 44px;
+  cursor: pointer;
+}
+.animation-setting > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: var(--muted);
+}
+.animation-setting button {
+  font-size: 11px;
+  color: var(--copper);
+  min-height: 32px;
+}
+body .month-summary {
+  grid-template-columns: 1fr;
+}
+body .month-summary .summary-spent {
+  width: 100%;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+body .month-summary .summary-spent > span:first-child {
+  font-size: 15px;
+  color: var(--text);
+}
+.insight-overview {
+  border-block: 1px solid var(--border);
+  padding: 24px 0;
+  margin-bottom: 24px;
+}
+.insight-spent {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.insight-spent > span {
+  font-size: 15px;
+}
+.insight-spent small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.insight-spent > .money {
+  font-size: clamp(30px, 4vw, 44px);
+  font-weight: 600;
+}
+.insight-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.insight-facts > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.insight-facts > div > span:first-child {
+  font-size: 11px;
+  color: var(--muted);
+}
+.insight-facts .money,
+.insight-facts strong {
+  font-size: clamp(15px, 2vw, 22px);
+  font-weight: 500;
+}
+.ledger-month {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--copper);
+  border-bottom: 1px solid var(--border);
+}
+.ledger-signed {
+  font-size: 14px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+body .expanded-filters,
+body .settings-card,
+body .transaction-detail,
+body .savings-detail {
+  animation: page-enter calc(0.22s * var(--motion-duration, 1))
+    cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+body .activity-row,
+body .ledger-row,
+body .category-setting {
+  transition:
+    transform calc(0.14s * var(--motion-duration, 1)),
+    background-color calc(0.14s * var(--motion-duration, 1));
+}
+body .activity-row:active,
+body .ledger-row:active:not(:disabled),
+body .category-setting:active {
+  transform: scale(0.985);
+  background: var(--raised);
+}
+body .scope-picker label.selected {
+  animation: page-enter calc(0.18s * var(--motion-duration, 1)) ease-out;
+}
 :root {
   --bg: #101214;
   --panel: #191c1e;
@@ -36,8 +167,8 @@ body .sidebar .nav-item {
   font-size: 13px;
   min-height: 48px;
   transition:
-    background 0.15s,
-    color 0.15s;
+    background calc(0.15s * var(--motion-duration, 1)),
+    color calc(0.15s * var(--motion-duration, 1));
 }
 body .sidebar .nav-item.active {
   background: var(--panel);
@@ -75,8 +206,8 @@ body .topbar-actions {
   color: var(--muted);
   font-size: 12px;
   transition:
-    transform 0.16s,
-    color 0.16s;
+    transform calc(0.16s * var(--motion-duration, 1)),
+    color calc(0.16s * var(--motion-duration, 1));
 }
 .savings-access:active {
   transform: scale(0.96);
@@ -113,9 +244,9 @@ body .app-layout .muted {
 }
 body .button {
   transition:
-    transform 0.15s,
-    background-color 0.15s,
-    border-color 0.15s;
+    transform calc(0.15s * var(--motion-duration, 1)),
+    background-color calc(0.15s * var(--motion-duration, 1)),
+    border-color calc(0.15s * var(--motion-duration, 1));
   border-radius: 10px;
   font-size: 12px;
   min-height: 44px;
@@ -150,7 +281,8 @@ body .muted {
   line-height: 1.6;
 }
 .page-surface {
-  animation: page-enter 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: page-enter calc(0.18s * var(--motion-duration, 1))
+    cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 @keyframes page-enter {
   from {
@@ -540,7 +672,8 @@ body .chart-column > div {
   background: var(--copper);
   border: 0;
   border-radius: 3px 3px 0 0;
-  animation: bar-enter 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: bar-enter calc(0.45s * var(--motion-duration, 1))
+    cubic-bezier(0.16, 1, 0.3, 1) both;
   transform-origin: bottom;
   min-width: 2px;
 }
@@ -594,7 +727,8 @@ body .breakdown-meter > span {
   width: 100%;
   background: var(--category);
   transform-origin: left;
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform calc(0.35s * var(--motion-duration, 1))
+    cubic-bezier(0.16, 1, 0.3, 1);
 }
 .tax-total {
   display: flex;
@@ -673,7 +807,8 @@ body .breakdown-meter > span {
     border-radius: 12px;
     background: var(--panel);
     transform: translateX(calc(var(--tab-index) * 100%));
-    transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform calc(0.24s * var(--motion-duration, 1))
+      cubic-bezier(0.16, 1, 0.3, 1);
     z-index: 0;
   }
   body .add-dock {
