@@ -1,18 +1,45 @@
-import { Dashboard } from './components/Dashboard';
-import { ToastProvider } from './context/ToastContext';
-
-function App() {
-  return (
-    <ToastProvider>
-      <div className="min-h-screen bg-[#08080a] text-zinc-100 font-sans selection:bg-primary/30 pb-[env(safe-area-inset-bottom)]">
-        <main className="max-w-md mx-auto px-4 py-4 sm:py-6 relative min-h-screen">
-          <Dashboard />
-        </main>
+import { lazy, Suspense, useState } from "react";
+import { MotionConfig } from "motion/react";
+import { useFinanceStore } from "./data/store";
+import { AppShell } from "./ui/AppShell";
+import { Logo } from "./ui/brand";
+import "./ui/morrow.css";
+const RecoveryScreen = lazy(() => import("./ui/RecoveryScreen"));
+export default function App() {
+  const store = useFinanceStore();
+  const [recovering, setRecovering] = useState(false);
+  if (store.status === "loading")
+    return (
+      <div className="boot-screen">
+        <Logo size={60} />
+        <span className="wordmark">morrow</span>
+        <p>Making room for tomorrow.</p>
+        <div className="boot-track" />
       </div>
-    </ToastProvider>
+    );
+  if (store.status === "error" || recovering)
+    return (
+      <Suspense fallback={<div className="boot-screen">Opening recovery…</div>}>
+        <RecoveryScreen
+          error={store.error}
+          onRestore={async (text) => {
+            await store.replaceFromBackup(text);
+            setRecovering(false);
+          }}
+          onRetry={() => {
+            void store.refresh();
+            setRecovering(false);
+          }}
+        />
+      </Suspense>
+    );
+  if (!store.state) return null;
+  return (
+    <MotionConfig
+      reducedMotion="user"
+      transition={{ type: "spring", stiffness: 380, damping: 36, mass: 0.8 }}
+    >
+      <AppShell store={store} onRecover={() => setRecovering(true)} />
+    </MotionConfig>
   );
 }
-
-export default App;
-
-

@@ -1,0 +1,104 @@
+name: Verify and build Android
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run lint
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-report
+          path: playwright-report/
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        with:
+          name: morrow-web
+          path: dist
+          retention-days: 14
+
+  android:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - run: npm ci
+      - run: npm run build:android
+      - run: npx cap sync android
+      - name: Configure optional stable release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.MORROW_KEYSTORE_BASE64 }}
+        run: |
+          if [[ -n "$KEYSTORE_BASE64" ]]; then
+            umask 077
+            printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/morrow-release.jks"
+            echo "MORROW_KEYSTORE_FILE=$RUNNER_TEMP/morrow-release.jks" >> "$GITHUB_ENV"
+            echo 'ANDROID_VARIANT=Release' >> "$GITHUB_ENV"
+          else
+            echo 'ANDROID_VARIANT=Debug' >> "$GITHUB_ENV"
+          fi
+      - name: Build and lint Android
+        env:
+          MORROW_KEY_ALIAS: ${{ secrets.MORROW_KEY_ALIAS }}
+          MORROW_STORE_PASSWORD: ${{ secrets.MORROW_STORE_PASSWORD }}
+          MORROW_KEY_PASSWORD: ${{ secrets.MORROW_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew ":app:assemble$ANDROID_VARIANT" ":app:lint$ANDROID_VARIANT" --no-daemon --console=plain
+        working-directory: android
+      - name: Name installable APK and calculate checksum
+        run: |
+          mkdir -p dist-apk
+          variant="${ANDROID_VARIANT,,}"
+          filename='Morrow-1.0.0.apk'
+          if [[ "$ANDROID_VARIANT" == 'Debug' ]]; then filename='Morrow-1.0.0-development.apk'; fi
+          cp "android/app/build/outputs/apk/$variant/app-$variant.apk" "dist-apk/$filename"
+          cd dist-apk
+          sha256sum "$filename" > "$filename.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Morrow-Android-${{ env.ANDROID_VARIANT }}-APK
+          path: dist-apk/*
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-lint-report
+          path: android/app/build/reports/lint-results-*.html
+          if-no-files-found: ignore

@@ -1,50 +1,57 @@
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
-import { VitePWA } from 'vite-plugin-pwa';
-
-// https://vitejs.dev/config/
-export default defineConfig({
-  base: '/finance-tracker/',
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { VitePWA } from "vite-plugin-pwa";
+export default defineConfig(({ mode }) => ({
+  base: mode === "android" ? "./" : "/finance-tracker/",
   plugins: [
-    tailwindcss(),
     react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      workbox: {
-        skipWaiting: true,
-        clientsClaim: true,
-        cleanupOutdatedCaches: true
-      },
-      includeAssets: ['favicon.svg', 'icons.svg'],
-      manifest: {
-        name: 'Finance Tracker',
-        short_name: 'Finance',
-        description: 'Enterprise-grade personal finance tracker',
-        theme_color: '#121212',
-        background_color: '#121212',
-        display: 'standalone',
-        icons: [
-          {
-            src: 'favicon.svg',
-            sizes: '192x192',
-            type: 'image/svg+xml',
-            purpose: 'any'
-          },
-          {
-            src: 'favicon.svg',
-            sizes: '512x512',
-            type: 'image/svg+xml',
-            purpose: 'any'
-          },
-          {
-            src: 'favicon.svg',
-            sizes: '512x512',
-            type: 'image/svg+xml',
-            purpose: 'maskable'
-          }
-        ]
-      }
-    })
+    ...(mode === "android"
+      ? []
+      : [
+          VitePWA({
+            registerType: "prompt",
+            includeAssets: ["morrow.svg", "icon-192.png", "icon-512.png"],
+            manifest: {
+              name: "Morrow",
+              short_name: "Morrow",
+              description:
+                "Make room for tomorrow. Savings and funded budgets.",
+              theme_color: "#111315",
+              background_color: "#111315",
+              display: "standalone",
+              icons: [
+                {
+                  src: "icon-192.png",
+                  sizes: "192x192",
+                  type: "image/png",
+                  purpose: "any",
+                },
+                {
+                  src: "icon-512.png",
+                  sizes: "512x512",
+                  type: "image/png",
+                  purpose: "any maskable",
+                },
+              ],
+            },
+            workbox: {
+              cleanupOutdatedCaches: true,
+              maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+            },
+          }),
+        ]),
   ],
-});
+  build: {
+    target: "es2022",
+    cssCodeSplit: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/xlsx")) return "spreadsheet";
+          if (id.includes("@capacitor-community/sqlite"))
+            return "native-storage";
+        },
+      },
+    },
+  },
+}));

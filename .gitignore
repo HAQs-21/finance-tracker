@@ -26,3 +26,14 @@ dist-ssr
 # Local backup folders
 src_backup/
 
+
+# Morrow build and local tooling
+dist-apk/
+playwright-report/
+test-results/
+.android/
+.android-tools/
+*.keystore
+*.jks
+local.properties
+legacy/retired/

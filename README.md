@@ -1,73 +1,33 @@
-# React + TypeScript + Vite
+# Morrow
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A complete Android-first rebuild of Finance Tracker. Dark, offline-first, with savings-funded category envelopes and a shared browser app.
 
-Currently, two official plugins are available:
+## Money model
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+Earnings enter Savings. Funding a monthly category budget reserves real Savings; expenses consume that category allocation. Spending above available funds is rejected atomically. Template revisions affect their selected future scope, never earlier months. Closing an envelope returns unused funds while preserving every expense. Refunds and corrections retain an audit trail.
 
-## React Compiler
+## Development
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Requires Node 24. Run npm ci, npm run dev. npm test runs domain and persistence tests; npm run test:e2e exercises desktop and phone browser flows. npm run lint and npm run build verify the browser app. npm run android:apk builds the signed APK using the Android SDK, Java 21, and the locally preserved signing configuration. See docs/android-delivery.md.
 
-## Expanding the ESLint configuration
+Release verification and device-testing boundaries are documented in [docs/verification.md](docs/verification.md).
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Bringing existing records across
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+Open the browser app on the existing finance-tracker origin. Morrow detects FinanceTrackerApp, snapshots its unmodified source tables, and migrates history with a reconciliation receipt in My space. Old savings transfers are not earnings. Only unspent current budgets reserve funds at cutover. Original records and ambiguous rows remain in the complete recovery file. The old database is retained.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+Export My space → Complete JSON in the browser, then Restore JSON in the Android app. Android cannot directly read the browser database. A legacy GitHub data.json file can also be restored through the reviewed JSON restore flow.
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Storage and recovery
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Browser: structured IndexedDB. Android: native SQLite with named record fields. Financial changes commit atomically. Recovery checkpoints precede replacement, reset, and import. Complete JSON includes the journal, category identities, recurring template versions, budgets, and original migration records. CSV and notes are convenience exports; Excel contains formulas and a complete journal.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+GitHub backup uses explicit inspect/review, compare-and-swap updates, and read-back verification. A missing file never clears local records. Access tokens remain in memory. Use one active editing device; transfer through verified backups.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+The signing directory .android-tools/signing is deliberately ignored by Git. Preserve it privately to sign future APK updates. It must never be committed.
+
+## Design
+
+Morrow uses a custom folded-ribbon mark, graphite night palettes, locally bundled Manrope and Instrument Serif, spring navigation, animated balances, responsive sheets, and reduced-motion support. Desktop and Android share the same financial rules.
+
+The previous implementation is preserved in legacy/finance-tracker-source.zip and Git history.
