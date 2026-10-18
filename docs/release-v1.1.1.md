@@ -5,6 +5,7 @@
 - Savings history grouped by month, with signed earnings and category funding/return records. Category expenses use the reserved budget and are not deducted from Savings a second time.
 - Reports renamed Insights, with a compact spending overview and supporting earned/average/count figures.
 - Fixed an overlapping-dialog scroll-lock race that could leave the page unable to scroll until restart.
+- Prevented focus-induced scroll jumps and corrected mobile virtual-list anchoring near the last records.
 - Added motion to filter panels, settings panels, transaction details, selection changes, and row presses.
 
 Install over the current app; the signing key and database format are unchanged.

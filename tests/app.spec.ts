@@ -190,9 +190,19 @@ test("expense month navigation is shared and large category histories keep bound
     detail.getByText("Current expense 0", { exact: true }),
   ).toBeVisible();
   expect(await detail.locator(".ledger-row").count()).toBeLessThan(25);
-  await detail.locator(".virtual-ledger").evaluate((element) => {
+  await expect(detail).toHaveCSS("transform", "none");
+  await detail.locator(".sheet-body").evaluate((element) => {
     element.scrollTop = element.scrollHeight;
   });
+  await expect
+    .poll(async () => {
+      // Virtuoso can adjust its spacer after the first distant jump on mobile.
+      await detail.locator(".virtual-ledger").evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+      });
+      return detail.getByText("Current expense 4999", { exact: true }).count();
+    })
+    .toBe(1);
   await expect(
     detail.getByText("Current expense 4999", { exact: true }),
   ).toBeVisible();
@@ -813,6 +823,8 @@ test("navigation keeps Activity filters and motion-enabled sheets dismiss cleanl
   const dialog = page.getByRole("dialog", { name: "Food", exact: true });
   await expect(dialog).toBeVisible();
   if (testInfo.project.name === "android-layout") {
+    await expect(dialog).toHaveCSS("opacity", "1");
+    await expect(dialog).toHaveCSS("transform", "none");
     const grip = dialog.getByRole("button", {
       name: "Dismiss sheet",
       exact: true,

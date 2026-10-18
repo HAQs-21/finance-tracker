@@ -149,7 +149,7 @@ export function Sheet({
           ref.current?.querySelector<HTMLElement>(
             '.sheet-body input:not([type="file"]), .sheet-body select, .sheet-body textarea, .sheet-body button',
           ) || ref.current?.querySelector<HTMLElement>("button")
-        )?.focus(),
+        )?.focus({ preventScroll: true }),
       160,
     );
     const key = (event: KeyboardEvent) => {
@@ -176,7 +176,7 @@ export function Sheet({
       clearTimeout(focusTimer);
       unlockScroll();
       document.removeEventListener("keydown", key);
-      previous?.focus();
+      previous?.focus({ preventScroll: true });
     };
   }, []);
   return createPortal(

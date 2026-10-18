@@ -41,10 +41,13 @@ function LedgerList({
   return (
     <Virtuoso
       className="virtual-ledger"
-      style={{ height: Math.min(384, rows.length * 64) }}
+      style={{
+        height: Math.min(384, rows.length * 64),
+        overflowAnchor: "none",
+      }}
       data={rows}
       fixedItemHeight={64}
-      overscan={128}
+      increaseViewportBy={128}
       computeItemKey={(_, row) => row.entry?.id || row.month}
       itemContent={(_, { entry, month }) =>
         entry ? (
