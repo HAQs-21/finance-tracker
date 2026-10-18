@@ -4,8 +4,6 @@ import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
 import android.content.Context;
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
 import android.os.Build;
 import android.os.SystemClock;
 import android.view.KeyEvent;
@@ -90,25 +88,29 @@ public class NativeLedgerTest {
         waitFor("!document.querySelector('[role=dialog]') && document.querySelector('.mobile-nav') && !document.querySelector('.recovery-page')");
     }
 
-    private SQLiteDatabase database() {
-        return SQLiteDatabase.openDatabase(context.getDatabasePath("morrowSQLite.db").getPath(), null, SQLiteDatabase.OPEN_READWRITE);
+    private void nativeCall(String method, JSONObject options) throws Exception {
+        run("window.__bridgeTestResult=null;window.Capacitor.nativePromise('CapacitorSQLite',"
+            + JSONObject.quote(method) + "," + options.toString()
+            + ").then(value=>window.__bridgeTestResult=value).catch(error=>window.__bridgeTestResult={testError:error.message})");
+        waitFor("window.__bridgeTestResult!==null");
+        assertEquals("Native bridge rejected the test call: " + evaluate("window.__bridgeTestResult"), "false", evaluate("Boolean(window.__bridgeTestResult.testError)"));
     }
 
-    private long scalar(String sql) {
-        try (SQLiteDatabase database = database(); Cursor cursor = database.rawQuery(sql, null)) {
-            assertTrue(cursor.moveToFirst());
-            return cursor.getLong(0);
-        }
+    private JSONObject query(String sql) throws Exception {
+        return new JSONObject().put("database", "morrow").put("statement", sql)
+            .put("values", new org.json.JSONArray()).put("readonly", false).put("isSQL92", true);
     }
 
-    private String ledgerRows() {
+    private long scalar(String sql) throws Exception {
+        nativeCall("query", query("SELECT (" + sql + ") AS value"));
+        return Long.parseLong(evaluate("window.__bridgeTestResult.values[0].value"));
+    }
+
+    private String ledgerRows() throws Exception {
         StringBuilder result = new StringBuilder();
-        try (SQLiteDatabase database = database()) {
-            for (String table : new String[] {"categories", "templates", "budgets", "journal"}) {
-                try (Cursor cursor = database.rawQuery("SELECT data FROM " + table + " ORDER BY id", null)) {
-                    while (cursor.moveToNext()) result.append(table).append(':').append(cursor.getString(0)).append('\n');
-                }
-            }
+        for (String table : new String[] {"categories", "templates", "budgets", "journal"}) {
+            nativeCall("query", query("SELECT data FROM " + table + " ORDER BY id"));
+            result.append(table).append(':').append(evaluate("window.__bridgeTestResult.values")).append('\n');
         }
         return result.toString();
     }
@@ -186,9 +188,9 @@ public class NativeLedgerTest {
             assertEquals(1, scalar("SELECT COUNT(*) FROM archives WHERE id='legacy'"));
 
             // Simulate metadata damage on this disposable database, keeping all rows in place.
-            try (SQLiteDatabase database = database()) {
-                database.execSQL("UPDATE metadata SET data = ? WHERE key = 'state'", new Object[] {"{\"invalid\":true}"});
-            }
+            JSONObject damage = query("UPDATE metadata SET data = ? WHERE key = 'state'")
+                .put("values", new org.json.JSONArray().put("{\"invalid\":true}")).put("transaction", true);
+            nativeCall("run", damage);
             scenario.recreate();
             waitFor("document.querySelector('.recovery-page')");
             helpers();

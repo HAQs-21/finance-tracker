@@ -664,21 +664,33 @@ test("navigation keeps Activity filters and motion-enabled sheets dismiss cleanl
   const dialog = page.getByRole("dialog", { name: "Food", exact: true });
   await expect(dialog).toBeVisible();
   if (testInfo.project.name === "android-layout") {
-    const handle = await dialog
-      .getByRole("button", { name: "Dismiss sheet", exact: true })
-      .boundingBox();
+    const grip = dialog.getByRole("button", {
+      name: "Dismiss sheet",
+      exact: true,
+    });
+    const element = await grip.elementHandle();
+    await element!.waitForElementState("stable");
+    const handle = await grip.boundingBox();
     expect(handle).not.toBeNull();
-    await page.mouse.move(
-      handle!.x + handle!.width / 2,
-      handle!.y + handle!.height / 2,
-    );
-    await page.mouse.down();
-    await page.mouse.move(
-      handle!.x + handle!.width / 2,
-      handle!.y + handle!.height / 2 + 150,
-      { steps: 12 },
-    );
-    await page.mouse.up();
+    const touch = await page.context().newCDPSession(page);
+    const x = handle!.x + handle!.width / 2;
+    const y = handle!.y + handle!.height / 2;
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ x, y }],
+    });
+    for (let step = 1; step <= 12; step++) {
+      await touch.send("Input.dispatchTouchEvent", {
+        type: "touchMove",
+        touchPoints: [{ x, y: y + (150 * step) / 12 }],
+      });
+      await page.waitForTimeout(16);
+    }
+    await touch.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    await touch.detach();
   } else {
     await page.keyboard.press("Escape");
   }

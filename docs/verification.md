@@ -1,5 +1,15 @@
 # Morrow 1.0.0 verification
 
+## 1.0.1 Android regression verification
+
+The 1.0.0 Android startup failure was reproduced on an Android 15 x86_64 emulator. The journal-mode PRAGMA returns a row and must use Capacitor SQLite's query method instead of its execSQL-backed execute method. The corrected app passes `NativeLedgerTest` through the real WebView and native SQLite bridge: startup, earnings, funded budgets, expenses, recreation persistence, native JSON export, complete recovery restore, legacy Finance Tracker restore, damaged-metadata recovery, and preservation of pre-restore snapshots. Synthetic data is used throughout. The test does not open a competing platform SQLite connection against SQLCipher's live database.
+
+The browser gesture test waits for the animated handle to settle and sends an actual touch swipe. This removes the race caused by sampling a moving handle and simulating a mouse drag in phone mode. Developer file watching excludes emulator files and Android build outputs.
+
+Physical phone validation is still separate from emulator verification.
+
+## Original 1.0.0 checks
+
 Verified on October 18, 2026.
 
 - **45 financial and persistence tests pass.** Coverage includes exact paisa arithmetic, immutable commands, strict category caps, allocation changes, recurring template versions, rollover shortages, corrections, refunds, archival, complete backup validation, legacy reconciliation, concurrent browser writes, imports, Excel formulas, and GitHub backup conflicts.

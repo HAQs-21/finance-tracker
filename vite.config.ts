@@ -3,6 +3,18 @@ import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 export default defineConfig(({ mode }) => ({
   base: mode === "android" ? "./" : "/finance-tracker/",
+  server: {
+    watch: {
+      ignored: [
+        "**/.android-tools/**",
+        "**/android/**",
+        "**/dist-apk/**",
+        "**/test-results/**",
+        "**/playwright-report/**",
+        "**/legacy/**",
+      ],
+    },
+  },
   plugins: [
     react(),
     ...(mode === "android"
