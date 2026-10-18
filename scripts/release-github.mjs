@@ -134,6 +134,23 @@ async function main() {
         body: JSON.stringify({ build_type: "workflow" }),
       });
     }
+    const environmentPath = "/environments/github-pages";
+    const environment = await api(environmentPath, {}, [404]);
+    if (environment?.deployment_branch_policy?.custom_branch_policies) {
+      const policies = await api(
+        `${environmentPath}/deployment-branch-policies?per_page=100`,
+      );
+      const allowsMaster = policies.branch_policies.some(
+        (policy) => policy.name === "master" && policy.type === "branch",
+      );
+      if (!allowsMaster) {
+        await api(`${environmentPath}/deployment-branch-policies`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: "master", type: "branch" }),
+        });
+      }
+    }
     const pages = await api("/pages");
     console.log(
       JSON.stringify(
@@ -193,11 +210,18 @@ async function main() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ draft: false }),
   });
+  const publishedApk = published.assets?.find(
+    (asset) => asset.id === artifact.id,
+  );
+  if (!publishedApk)
+    throw new Error(
+      "Release published, but its final APK URL could not be verified. Check the release before sharing a download link.",
+    );
   console.log(
     JSON.stringify(
       {
         release: published.html_url,
-        apk: artifact.browser_download_url,
+        apk: publishedApk.browser_download_url,
         sha256: checksum,
         commit,
       },
