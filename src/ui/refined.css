@@ -1,0 +1,794 @@
+/* Motion stays on compositor properties; no full-screen blur or layout projection. */
+:root {
+  --bg: #101214;
+  --panel: #191c1e;
+  --raised: #272b2d;
+  --border: #2d3234;
+  --text: #ecefeb;
+  --muted: #a0a6a4;
+  --copper: #d4eb91;
+  --green: #a5d2bc;
+  --serif: "Manrope Variable", system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+:root[data-theme="charcoal"] {
+  --bg: #1b1e20;
+  --panel: #24282b;
+  --raised: #32383b;
+  --border: #3c4245;
+}
+body .app-layout {
+  color: var(--text);
+}
+body .sidebar {
+  width: 200px;
+  padding: 30px 20px;
+  background: var(--bg);
+  border-color: var(--border);
+}
+body .sidebar nav {
+  margin-top: 52px;
+  gap: 6px;
+}
+body .sidebar .nav-item {
+  color: var(--muted);
+  font-size: 13px;
+  min-height: 48px;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+body .sidebar .nav-item.active {
+  background: var(--panel);
+  color: var(--copper);
+}
+body .sidebar .version {
+  font-size: 10px;
+  letter-spacing: 0.2px;
+  color: var(--muted);
+}
+body .workspace {
+  margin-left: 200px;
+}
+body .topbar {
+  height: 72px;
+  margin: 0 36px;
+  justify-content: flex-end;
+  border-color: var(--border);
+}
+body .main-content {
+  padding: 28px 36px 100px;
+  max-width: 1320px;
+}
+body .topbar-actions {
+  gap: 12px;
+}
+.savings-access {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 30px;
+  padding: 8px 14px;
+  color: var(--muted);
+  font-size: 12px;
+  transition:
+    transform 0.16s,
+    color 0.16s;
+}
+.savings-access:active {
+  transform: scale(0.96);
+}
+.savings-access:hover {
+  color: var(--text);
+}
+body .app-layout .page-heading {
+  margin: 0 0 24px;
+  gap: 14px;
+}
+body .app-layout .page-heading h1 {
+  font-family: inherit;
+  font-size: 30px;
+  line-height: 1.2;
+  font-weight: 650;
+  margin: 0;
+  letter-spacing: -1px;
+}
+body .app-layout .section-heading {
+  margin-bottom: 18px;
+  gap: 12px;
+}
+body .app-layout .section-heading h2,
+body .app-layout .settings-card h2 {
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+body .app-layout .muted {
+  color: var(--muted);
+}
+body .button {
+  transition:
+    transform 0.15s,
+    background-color 0.15s,
+    border-color 0.15s;
+  border-radius: 10px;
+  font-size: 12px;
+  min-height: 44px;
+}
+body .primary,
+body .add-button {
+  background: var(--copper);
+  border-color: var(--copper);
+  color: #1b2312;
+}
+body .primary:hover:not(:disabled),
+body .add-button:hover {
+  background: #e1f4ac;
+  box-shadow: none;
+}
+body .secondary,
+body .subtle {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--text);
+}
+body .icon-button {
+  min-width: 40px;
+  width: 40px;
+  height: 40px;
+}
+body .money {
+  display: inline-block;
+  letter-spacing: -0.04em;
+}
+body .muted {
+  line-height: 1.6;
+}
+.page-surface {
+  animation: page-enter 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes page-enter {
+  from {
+    opacity: 0.25;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.period-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+body .month-picker {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--panel);
+}
+body .month-picker .icon-button {
+  width: 34px;
+  min-width: 34px;
+  height: 40px;
+}
+.month-picker label {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 96px;
+  height: 40px;
+  font-size: 12px;
+  cursor: pointer;
+}
+body .month-picker input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  padding: 0;
+  min-height: 0;
+}
+.month-picker input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+.month-picker label:focus-within {
+  outline: 2px solid var(--copper);
+  outline-offset: -2px;
+  border-radius: 5px;
+}
+.period-all {
+  color: var(--muted);
+  font-size: 11px;
+  min-height: 40px;
+  padding: 0 8px;
+}
+.period-all.selected {
+  color: var(--copper);
+}
+body .period-note {
+  font-size: 11px;
+  padding: 12px;
+  background: transparent;
+  border-color: var(--border);
+}
+body .empty-state {
+  padding: 32px 16px;
+  min-height: 0;
+}
+body .empty-state h3 {
+  font-family: inherit;
+  font-size: 18px;
+  font-weight: 550;
+}
+body .empty-state p {
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 8px;
+}
+body .empty-state .button {
+  margin-top: 16px;
+}
+body .migration-notice {
+  padding: 6px 12px;
+  margin-bottom: 20px;
+  font-size: 12px;
+  justify-content: space-between;
+}
+body .add-dock {
+  bottom: 24px;
+  right: 30px;
+}
+body .add-button {
+  min-height: 48px;
+  font-weight: 650;
+  box-shadow: 0 4px 14px #0003;
+}
+body .add-button:active {
+  transform: scale(0.95);
+}
+body .guide-overlay,
+body .sheet-backdrop,
+body .mobile-nav {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+body .guide-card {
+  background: var(--panel);
+  padding: 28px;
+  border-color: var(--border);
+}
+body .guide-card h2 {
+  font-family: inherit;
+  font-size: 24px;
+  margin: 0 0 20px;
+}
+body .guide-card ol {
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 2;
+}
+body .guide-card .button {
+  margin-top: 20px;
+}
+body .sheet {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--border);
+  box-shadow: 0 16px 48px #0005;
+  border-radius: 18px;
+}
+body .sheet-backdrop {
+  background: #07090be0;
+}
+body .sheet-header {
+  padding: 24px;
+  gap: 16px;
+}
+body .sheet-header h2 {
+  font-family: inherit;
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.7px;
+}
+body .sheet-header p.muted {
+  margin-top: 6px;
+  font-size: 12px;
+}
+body .sheet-body {
+  padding: 24px;
+}
+body .field {
+  gap: 7px;
+  margin-bottom: 18px;
+}
+body .field > span,
+body .field > small {
+  font-size: 12px;
+  letter-spacing: 0;
+}
+body .field input,
+body .field textarea,
+body .field select {
+  font-size: 14px;
+}
+body .category-detail {
+  text-align: left;
+}
+body .category-detail .large {
+  display: none;
+}
+body .category-detail .detail-amount {
+  font-size: 36px;
+  font-family: inherit;
+  font-weight: 550;
+  margin: 10px 0 20px;
+}
+body .detail-stats {
+  margin: 0 0 20px;
+}
+body .detail-stats .money {
+  font-family: inherit;
+  font-size: 18px;
+}
+body .transaction-hero .money,
+body .savings-sheet-amount {
+  font-family: inherit;
+  font-size: 36px;
+}
+body .subsection-title {
+  font-size: 12px;
+  letter-spacing: 0;
+}
+.virtual-ledger {
+  margin: 8px 0;
+}
+.ledger-loading {
+  height: 128px;
+}
+.ledger-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 64px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.ledger-row:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.ledger-row .row-icon {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.ledger-copy {
+  flex: 1;
+  min-width: 0;
+}
+.ledger-copy strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ledger-copy small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.ledger-row > .money {
+  font-size: 14px;
+}
+body .app-layout .settings-grid {
+  gap: 16px;
+}
+body .app-layout .settings-card {
+  background: var(--panel);
+  border-color: var(--border);
+  padding: 22px;
+  border-radius: 14px;
+  box-shadow: none;
+  color: var(--text);
+}
+body .app-layout .settings-card .section-heading h2 > svg {
+  color: var(--muted);
+}
+body .app-layout .settings-card .setting-row {
+  min-height: 64px;
+  padding: 14px 0;
+  gap: 16px;
+  border-color: var(--border);
+}
+body .app-layout .settings-card .setting-row strong {
+  font-size: 13px;
+}
+body .app-layout .settings-card .setting-row .muted {
+  font-size: 11px;
+  line-height: 1.5;
+  margin-top: 4px;
+}
+body .app-layout .settings-card > .muted {
+  font-size: 12px;
+  margin: 10px 0 16px;
+  line-height: 1.6;
+}
+body .toggle.on {
+  background: var(--copper);
+  border-color: var(--copper);
+}
+body .toggle.on > span {
+  background: #29321d;
+}
+body .activity-toolbar {
+  margin-bottom: 14px;
+}
+body .search-field {
+  background: var(--panel);
+  border-color: var(--border);
+  color: var(--muted);
+}
+body .search-field input {
+  font-size: 14px;
+}
+body .activity-controls {
+  margin: 14px 0 20px;
+}
+body .pill-tabs {
+  border-color: var(--border);
+  background: var(--panel);
+}
+body .pill-tabs > button {
+  color: var(--muted);
+  font-size: 11px;
+  min-height: 36px;
+  padding: 7px 12px;
+}
+body .pill-tabs > button.active {
+  background: var(--raised);
+  color: var(--text);
+}
+body .sort-select,
+body .sort-select select {
+  color: var(--muted);
+  font-size: 11px;
+}
+body .feed-label {
+  color: var(--muted);
+  border-color: var(--border);
+  letter-spacing: 0.3px;
+  font-size: 11px;
+}
+body .date-group {
+  color: var(--muted);
+  font-size: 12px;
+}
+body .activity-row {
+  border-color: var(--border);
+  padding: 14px 4px;
+  min-height: 76px;
+}
+body .activity-description strong {
+  font-size: 13px;
+}
+body .activity-description small {
+  color: var(--muted);
+  font-size: 11px;
+}
+body .insight-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0 0 20px;
+}
+body .insight-summary > div {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+body .insight-summary p {
+  color: var(--muted);
+  font-size: 12px;
+}
+body .insight-summary .money {
+  font-family: inherit;
+  font-size: 28px;
+  margin-top: 8px;
+}
+body .chart-card,
+body .category-breakdown {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  margin: 0 0 20px;
+}
+body .chart-card .section-heading .muted {
+  font-size: 11px;
+}
+body .bar-chart {
+  height: 190px;
+  margin-top: 28px;
+  gap: 4px;
+}
+body .chart-column {
+  position: relative;
+}
+body .chart-column > div {
+  background: var(--copper);
+  border: 0;
+  border-radius: 3px 3px 0 0;
+  animation: bar-enter 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transform-origin: bottom;
+  min-width: 2px;
+}
+@keyframes bar-enter {
+  from {
+    transform: scaleY(0);
+    opacity: 0.4;
+  }
+  to {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+body .signed-chart .chart-column > div {
+  position: absolute;
+  bottom: 50%;
+  width: 100%;
+}
+body .signed-chart .chart-column.negative > div {
+  top: 50%;
+  bottom: auto;
+  background: var(--green);
+  transform-origin: top;
+  border-radius: 0 0 3px 3px;
+}
+body .chart-hidden .chart-column > div {
+  visibility: hidden;
+}
+body .chart-hidden {
+  filter: none;
+}
+body .chart-axis {
+  color: var(--muted);
+  margin-top: 12px;
+  font-size: 11px;
+}
+body .breakdown-row {
+  border-color: var(--border);
+  gap: 12px;
+  padding: 14px 0;
+}
+body .breakdown-row > .money {
+  font-family: inherit;
+  font-size: 15px;
+}
+body .breakdown-main strong {
+  font-size: 13px;
+}
+body .breakdown-meter > span {
+  display: block;
+  width: 100%;
+  background: var(--category);
+  transform-origin: left;
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.tax-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  font-size: 13px;
+}
+.tax-total small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 4px;
+}
+@media (max-width: 900px) {
+  body .sidebar {
+    display: none;
+  }
+  body .workspace {
+    margin-left: 0;
+  }
+  body .topbar {
+    padding-top: var(--safe-top);
+    height: calc(68px + var(--safe-top));
+    margin: 0 24px;
+    justify-content: space-between;
+  }
+  body .mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--copper);
+  }
+  body .mobile-brand .wordmark {
+    font-size: 25px;
+  }
+  body .main-content {
+    padding: 24px 24px calc(150px + var(--safe-bottom));
+  }
+  body .mobile-nav {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: calc(70px + var(--safe-bottom));
+    padding: 6px 14px calc(6px + var(--safe-bottom));
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    z-index: 40;
+    isolation: isolate;
+  }
+  body .mobile-nav > button {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 56px;
+    color: var(--muted);
+    font-size: 10px;
+    z-index: 1;
+  }
+  body .mobile-nav > button.active {
+    color: var(--copper);
+  }
+  .nav-cursor {
+    position: absolute;
+    left: 14px;
+    top: 6px;
+    width: calc((100% - 28px) / 4);
+    height: 56px;
+    border-radius: 12px;
+    background: var(--panel);
+    transform: translateX(calc(var(--tab-index) * 100%));
+    transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 0;
+  }
+  body .add-dock {
+    bottom: calc(86px + var(--safe-bottom));
+    right: 20px;
+  }
+}
+@media (max-width: 620px) {
+  body .topbar {
+    margin: 0 18px;
+  }
+  body .topbar-actions {
+    gap: 4px;
+  }
+  .savings-access {
+    padding: 8px 11px;
+    font-size: 11px;
+  }
+  body .main-content {
+    padding: 22px 18px calc(160px + var(--safe-bottom));
+  }
+  body .app-layout .page-heading {
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 22px;
+  }
+  body .app-layout .page-heading h1 {
+    font-size: 27px;
+  }
+  body .period-control {
+    gap: 2px;
+  }
+  body .period-control .month-picker label {
+    min-width: 90px;
+    font-size: 11px;
+  }
+  body .month-picker .icon-button {
+    width: 29px;
+    min-width: 29px;
+  }
+  .period-all {
+    font-size: 10px;
+    padding: 0 5px;
+  }
+  body .app-layout .settings-grid {
+    grid-template-columns: 1fr;
+  }
+  body .app-layout .settings-card {
+    padding: 18px;
+  }
+  body .sheet-header {
+    padding: 18px 20px;
+  }
+  body .sheet-body {
+    padding: 20px;
+  }
+  body .sheet-header h2 {
+    font-size: 23px;
+  }
+  body .sheet {
+    border-radius: 20px 20px 0 0;
+  }
+  body .activity-controls {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  body .pill-tabs {
+    flex: 1;
+    justify-content: space-between;
+  }
+  body .pill-tabs > button {
+    padding: 7px 10px;
+  }
+  body .sort-select {
+    margin-left: auto;
+  }
+  body .insight-summary {
+    gap: 8px;
+  }
+  body .insight-summary > div {
+    padding: 14px 10px;
+  }
+  body .insight-summary p {
+    font-size: 10px;
+  }
+  body .insight-summary .money {
+    font-size: 19px;
+  }
+  body .chart-card,
+  body .category-breakdown {
+    padding: 18px;
+  }
+  body .chart-card .section-heading {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  body .bar-chart {
+    height: 160px;
+    gap: 3px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion="never"]) .page-surface,
+  html:not([data-motion="never"]) .budget-card,
+  html:not([data-motion="never"]) .chart-column > div {
+    animation: none;
+  }
+}
+html[data-motion="always"] .page-surface,
+html[data-motion="always"] .budget-card,
+html[data-motion="always"] .chart-column > div {
+  animation: none;
+}
+html[data-motion="always"] .nav-cursor,
+html[data-motion="always"] .budget-progress > span,
+html[data-motion="always"] .breakdown-meter > span {
+  transition: none;
+}

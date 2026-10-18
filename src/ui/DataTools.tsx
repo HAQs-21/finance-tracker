@@ -50,7 +50,7 @@ export function RestorePreview({
       <p className="eyebrow">
         VERIFIED {preview.source === "legacy" ? "LEGACY MIGRATION" : "BACKUP"}
       </p>
-      <h3>Review before restoring.</h3>
+      <h3>Review backup</h3>
       <div className="form-two">
         <span>{preview.state.journal.length} journal records</span>
         <span>{preview.state.budgets.length} monthly budgets</span>
@@ -135,8 +135,8 @@ export function ImportTool({
   };
   return (
     <Sheet
-      title="Bring your history along."
-      description="Paste notes or open a CSV. Review exact amounts, inferred dates, and categories before anything is saved."
+      title="Import records"
+      description="Paste notes or open a CSV, then review."
       onClose={onClose}
       wide
     >
@@ -372,6 +372,7 @@ export function RestoreTool({
   onClose: () => void;
 }) {
   const [text, setText] = useState("");
+  const [fileName, setFileName] = useState("");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState("");
   const [pending, setPending] = useState(false);
@@ -387,7 +388,7 @@ export function RestoreTool({
   };
   return (
     <Sheet
-      title="Restore a little certainty."
+      title="Restore backup"
       description="Morrow backups and the original Finance Tracker JSON format are supported."
       onClose={onClose}
     >
@@ -402,21 +403,39 @@ export function RestoreTool({
             if (file)
               void file
                 .text()
-                .then(read)
+                .then((source) => {
+                  setFileName(file.name);
+                  read(source);
+                })
                 .catch((caught) => setError(message(caught)));
           }}
         />
       </label>
-      <Field label="Or paste backup JSON">
-        <textarea
-          rows={5}
-          value={text}
-          onChange={(event) => {
-            setText(event.target.value);
-            setPreview(null);
-          }}
-        />
-      </Field>
+      {fileName ? (
+        <div className="period-note">
+          <span>{fileName}</span>
+          <button
+            onClick={() => {
+              setFileName("");
+              setText("");
+              setPreview(null);
+            }}
+          >
+            Paste instead
+          </button>
+        </div>
+      ) : (
+        <Field label="Or paste backup JSON">
+          <textarea
+            rows={5}
+            value={text}
+            onChange={(event) => {
+              setText(event.target.value);
+              setPreview(null);
+            }}
+          />
+        </Field>
+      )}
       <button
         className="button secondary"
         disabled={!text.trim()}
@@ -532,8 +551,8 @@ export function CloudTool({
   };
   return (
     <Sheet
-      title="An outside copy."
-      description="GitHub stores a complete readable recovery file. Local changes stay local until you back them up."
+      title="GitHub backup"
+      description="Changes stay on this device until backed up."
       onClose={onClose}
       wide
     >

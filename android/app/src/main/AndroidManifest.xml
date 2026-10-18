@@ -3,9 +3,9 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- SQLite's optional biometric encryption is unused; do not request its permissions. -->
-    <uses-permission android:name="android.permission.USE_BIOMETRIC" tools:node="remove" />
-    <uses-permission android:name="android.permission.USE_FINGERPRINT" tools:node="remove" />
+    <!-- Savings view uses the system biometric/device-credential prompt. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" android:maxSdkVersion="27" />
 
     <application
         android:allowBackup="true"

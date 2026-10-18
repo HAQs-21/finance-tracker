@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { memo, useState, type Dispatch, type SetStateAction } from "react";
 import { AnimatePresence } from "motion/react";
 import {
   ArrowDownToLine,
@@ -26,7 +26,7 @@ import {
   exportText,
 } from "../data/exports";
 import type { Notify, Preferences } from "./AppShell";
-import { Logo } from "./brand";
+import { unlockSavings, type SavingsPrivacyStatus } from "../data/privacy";
 import { categoryColors } from "./colors";
 import { CategoryIcon, Field, InlineError, Sheet, Submit } from "./primitives";
 import { CloudTool, ImportTool, RestoreTool } from "./DataTools";
@@ -100,8 +100,7 @@ function CategoryEditor({
   };
   return (
     <Sheet
-      title={category ? "A category, your way." : "Make room for something."}
-      description="Names and appearance can change. The category’s identity and financial history stay connected."
+      title={category ? "Edit category" : "New category"}
       onClose={onClose}
     >
       <form
@@ -233,8 +232,8 @@ function RecoveryCopies({
   };
   return (
     <Sheet
-      title="Earlier, kept safe."
-      description="Local checkpoints are additional copies on this device. Download them somewhere outside the device for independent protection."
+      title="Recovery checkpoints"
+      description="Copies on this device. Export for an independent backup."
       onClose={onClose}
       wide
     >
@@ -308,8 +307,8 @@ function ResetTool({
   const [error, setError] = useState("");
   return (
     <Sheet
-      title="Begin a fresh ledger."
-      description="Your current ledger is exported first and retained as a local recovery checkpoint. The original Finance Tracker database is untouched."
+      title="Start a new ledger"
+      description="Exports a backup first and retains a recovery checkpoint."
       onClose={onClose}
     >
       <p className="period-note">
@@ -348,18 +347,20 @@ function ResetTool({
   );
 }
 
-export default function Settings({
+function Settings({
   store,
   preferences,
   setPreferences,
   notify,
   onRecover,
+  privacy,
 }: {
   store: Store;
   preferences: Preferences;
   setPreferences: Dispatch<SetStateAction<Preferences>>;
   notify: Notify;
   onRecover: () => void;
+  privacy: SavingsPrivacyStatus;
 }) {
   const state = store.state!;
   const [tool, setTool] = useState<Tool>(null);
@@ -396,29 +397,18 @@ export default function Settings({
   return (
     <div className="settings-page">
       <div className="page-heading">
-        <div>
-          <p className="eyebrow">MAKE YOURSELF AT HOME</p>
-          <h1>Your space.</h1>
-          <p className="page-subtitle">
-            A few thoughtful details, just the way you like them.
-          </p>
-        </div>
-        <div className="settings-mark">
-          <Logo size={46} />
-        </div>
+        <h1>Settings</h1>
       </div>
       <div className="settings-grid">
         <section className="settings-section settings-card">
           <div className="section-heading">
             <h2>
-              <Moon size={18} /> The evening setting
+              <Moon size={18} /> Appearance & privacy
             </h2>
-            <span className="muted">Made for softer light</span>
           </div>
           <div className="setting-row">
             <div>
-              <strong>Night palette</strong>
-              <p className="muted">Two quieter shades. Both stay dark.</p>
+              <strong>Theme</strong>
             </div>
             <div className="segmented">
               <button
@@ -447,9 +437,8 @@ export default function Settings({
           <div className="setting-row">
             <div>
               <strong>
-                <Sparkles size={15} /> Quieter motion
+                <Sparkles size={15} /> Reduce animations
               </strong>
-              <p className="muted">Reduce movement throughout the app.</p>
             </div>
             <Toggle
               checked={preferences.motion === "always"}
@@ -467,9 +456,6 @@ export default function Settings({
               <strong>
                 <Volume2 size={15} /> Haptic feedback
               </strong>
-              <p className="muted">
-                A small acknowledgement on supported phones.
-              </p>
             </div>
             <Toggle
               checked={preferences.haptics}
@@ -485,9 +471,7 @@ export default function Settings({
           <div className="setting-row">
             <div>
               <strong>Conceal amounts</strong>
-              <p className="muted">
-                Hide balances from casual glances. This is visual privacy.
-              </p>
+              <p className="muted">Hide amounts throughout the app.</p>
             </div>
             <Toggle
               checked={preferences.conceal}
@@ -500,11 +484,50 @@ export default function Settings({
               }
             />
           </div>
+          <div className="setting-row">
+            <div>
+              <strong>Device lock for Savings</strong>
+              <p className="muted">
+                {privacy.available
+                  ? "Fingerprint or screen lock to open."
+                  : privacy.native
+                    ? "Set up an Android screen lock first."
+                    : "Available on Android. Savings stays hidden until opened."}
+              </p>
+            </div>
+            <button
+              type="button"
+              className={`toggle ${preferences.savingsProtection === "required" || (preferences.savingsProtection === "auto" && privacy.available) ? "on" : ""}`}
+              role="switch"
+              aria-label="Device lock for Savings"
+              aria-checked={
+                preferences.savingsProtection === "required" ||
+                (preferences.savingsProtection === "auto" && privacy.available)
+              }
+              disabled={!!busy || !privacy.available}
+              onClick={() => {
+                void run("Savings privacy", async () => {
+                  const enabled =
+                    preferences.savingsProtection === "required" ||
+                    (preferences.savingsProtection === "auto" &&
+                      privacy.available);
+                  if (enabled)
+                    await unlockSavings(preferences.savingsProtection);
+                  setPreferences((current) => ({
+                    ...current,
+                    savingsProtection: enabled ? "hidden" : "required",
+                  }));
+                });
+              }}
+            >
+              <span />
+            </button>
+          </div>
         </section>
         <section className="settings-section settings-card">
           <div className="section-heading">
             <h2>
-              <Palette size={18} /> Your categories
+              <Palette size={18} /> Categories
             </h2>
             <button
               className="button subtle"
@@ -516,9 +539,6 @@ export default function Settings({
               <Plus size={16} /> Add
             </button>
           </div>
-          <p className="muted">
-            One identity from your first expense to your next plan.
-          </p>
           <div className="category-manager">
             {state.categories
               .filter((item) => showArchived || !item.archived)
@@ -558,15 +578,12 @@ export default function Settings({
         <section className="settings-section settings-card">
           <div className="section-heading">
             <h2>
-              <FolderHeart size={18} /> Your records, to keep
+              <FolderHeart size={18} /> Import & export
             </h2>
-            <span className="muted">Portable by design</span>
           </div>
           <p className="muted">
-            The JSON recovery file includes the complete journal, templates,
-            categories, and original migration source. CSV and text export
-            active earnings and expenses; Excel includes the full journal and
-            reports.
+            JSON restores the complete ledger. CSV and text contain active
+            transactions; Excel includes the journal and reports.
           </p>
           <div className="export-grid">
             <button
@@ -651,38 +668,31 @@ export default function Settings({
         <section className="settings-section settings-card">
           <div className="section-heading">
             <h2>
-              <Cloud size={18} /> An outside copy
+              <Cloud size={18} /> GitHub backup
             </h2>
             <ShieldCheck size={18} />
           </div>
           <p className="muted">
-            Back up to a GitHub repository. Inspect and verify remote files
-            before restoring. Conflicts stop instead of replacing another
-            device’s work.
+            Keep an external copy. Review remote changes before restoring.
           </p>
           <button className="button secondary" onClick={() => setTool("cloud")}>
             Manage GitHub backup <ArrowUpRight size={17} />
           </button>
           <p className="period-note">
-            One active editing device. Browser and Android transfer records
-            through complete recovery files or a reviewed GitHub backup.
+            Transfer between devices using JSON or GitHub. Automatic sync is not
+            enabled.
           </p>
         </section>
         <section className="settings-section settings-card">
           <div className="section-heading">
             <h2>
-              <Database size={18} /> Built to be recoverable
+              <Database size={18} /> Recovery
             </h2>
             <span className="status-dot" />
           </div>
           <p className="muted">
             {state.journal.length.toLocaleString()} journal records ·{" "}
             {state.budgets.length} monthly budgets · revision {state.revision}
-          </p>
-          <p className="period-note">
-            Financial changes commit atomically. Android uses SQLite; your
-            browser uses IndexedDB. Records remain readable and financial
-            corrections preserve earlier entries.
           </p>
           <div className="action-pair">
             <button
@@ -695,12 +705,14 @@ export default function Settings({
               Open recovery mode <ArrowUpRight size={16} />
             </button>
           </div>
-          <button
-            className="button subtle"
-            onClick={() => void persistStorage()}
-          >
-            Request persistent browser storage
-          </button>
+          {!privacy.native && (
+            <button
+              className="button subtle"
+              onClick={() => void persistStorage()}
+            >
+              Request persistent browser storage
+            </button>
+          )}
           {persistent && (
             <p className="muted" role="status">
               {persistent}
@@ -714,7 +726,7 @@ export default function Settings({
           <section className="settings-section settings-card">
             <div className="section-heading">
               <h2>
-                <ShieldCheck size={18} /> Your migration receipt
+                <ShieldCheck size={18} /> Migration report
               </h2>
               <span className="muted">Originals preserved</span>
             </div>
@@ -779,11 +791,6 @@ export default function Settings({
           </section>
         )}
       </div>
-      <div className="settings-signature">
-        <Logo size={30} />
-        <span className="wordmark">morrow</span>
-        <span className="muted">01.00 · A little intention, every day.</span>
-      </div>
       <AnimatePresence>
         {tool === "import" && (
           <ImportTool
@@ -833,3 +840,4 @@ export default function Settings({
     </div>
   );
 }
+export default memo(Settings);

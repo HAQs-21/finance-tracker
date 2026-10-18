@@ -1,4 +1,7 @@
 import {
+  memo,
+  useLayoutEffect,
+  useMemo,
   useEffect,
   useEffectEvent,
   useRef,
@@ -7,14 +10,7 @@ import {
   createElement,
 } from "react";
 import { createPortal } from "react-dom";
-import {
-  animate,
-  motion,
-  useMotionValue,
-  useReducedMotionConfig,
-  useDragControls,
-  useTransform,
-} from "motion/react";
+import { motion, useReducedMotionConfig, useDragControls } from "motion/react";
 import {
   X,
   Coffee,
@@ -78,7 +74,7 @@ export function CategoryIcon({
     "aria-hidden": true,
   });
 }
-export function Money({
+export const Money = memo(function Money({
   value,
   className = "",
   hidden = false,
@@ -87,24 +83,34 @@ export function Money({
   className?: string;
   hidden?: boolean;
 }) {
-  const amount = useMotionValue(value);
+  const element = useRef<HTMLSpanElement>(null);
+  const previous = useRef(value);
   const reduce = useReducedMotionConfig();
-  const formatted = useTransform(amount, (v) => formatMoney(Math.round(v)));
-  useEffect(() => {
-    const controls = animate(amount, value, {
-      duration: reduce ? 0 : 0.45,
-      ease: [0.22, 1, 0.36, 1],
-    });
-    return () => controls.stop();
-  }, [amount, value, reduce]);
+  const formatted = useMemo(() => formatMoney(value), [value]);
+  useLayoutEffect(() => {
+    if (previous.current === value) return;
+    previous.current = value;
+    if (reduce || hidden) return;
+    const animation = element.current?.animate?.(
+      [
+        { transform: "translateY(5px)", opacity: 0.35 },
+        { transform: "translateY(-1px)", opacity: 1, offset: 0.8 },
+        { transform: "translateY(0)", opacity: 1 },
+      ],
+      { duration: 240, easing: "cubic-bezier(.16,1,.3,1)" },
+    );
+    return () => animation?.cancel();
+  }, [value, reduce, hidden]);
   return hidden ? (
     <span className={`money concealed ${className}`} aria-label="Amount hidden">
       ••••••
     </span>
   ) : (
-    <motion.span className={`money ${className}`}>{formatted}</motion.span>
+    <span ref={element} className={`money ${className}`}>
+      {formatted}
+    </span>
   );
-}
+});
 export function Sheet({
   children,
   title,
@@ -199,9 +205,10 @@ export function Sheet({
         onDragEnd={(_, info) => {
           if (info.offset.y > 90 || info.velocity.y > 650) onClose();
         }}
-        initial={{ y: 60, opacity: 0, scale: 0.98 }}
-        animate={{ y: 0, opacity: 1, scale: 1 }}
-        exit={{ y: 35, opacity: 0, scale: 0.98 }}
+        initial={{ y: 28, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 20, opacity: 0 }}
+        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
       >
         <button
           className="sheet-grip"
@@ -211,7 +218,6 @@ export function Sheet({
         />
         <header className="sheet-header">
           <div>
-            <p className="eyebrow">A LITTLE INTENTION GOES A LONG WAY</p>
             <h2>{title}</h2>
             {description && <p className="muted">{description}</p>}
           </div>
@@ -240,11 +246,6 @@ export function EmptyState({
 }) {
   return (
     <div className="empty-state">
-      <div className="empty-orbit">
-        <Layers3 size={28} />
-        <span />
-        <span />
-      </div>
       <h3>{title}</h3>
       <p>{description}</p>
       {children}

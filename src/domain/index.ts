@@ -140,19 +140,24 @@ export function getMonthlyBudgets(
 export function isReversed(state: FinanceState, entryId: string): boolean {
   return state.journal.some((entry) => entry.reversesId === entryId);
 }
+const activeEntryCache = new WeakMap<FinanceState, JournalEntry[]>();
 export function getActiveEntries(state: FinanceState): JournalEntry[] {
+  const cached = activeEntryCache.get(state);
+  if (cached) return cached;
   const reversed = new Set(
     state.journal
       .filter((entry) => entry.reversesId)
       .map((entry) => entry.reversesId),
   );
-  return state.journal.filter(
+  const entries = state.journal.filter(
     (entry) =>
       !reversed.has(entry.id) &&
       (entry.kind === "income" ||
         entry.kind === "expense" ||
         entry.kind === "refund"),
   );
+  activeEntryCache.set(state, entries);
+  return entries;
 }
 export function templateForMonth(
   state: FinanceState,

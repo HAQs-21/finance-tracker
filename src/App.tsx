@@ -4,6 +4,7 @@ import { useFinanceStore } from "./data/store";
 import { AppShell } from "./ui/AppShell";
 import { Logo } from "./ui/brand";
 import "./ui/morrow.css";
+import "./ui/refined.css";
 const RecoveryScreen = lazy(() => import("./ui/RecoveryScreen"));
 export default function App() {
   const store = useFinanceStore();
@@ -13,7 +14,6 @@ export default function App() {
       <div className="boot-screen">
         <Logo size={60} />
         <span className="wordmark">morrow</span>
-        <p>Making room for tomorrow.</p>
         <div className="boot-track" />
       </div>
     );

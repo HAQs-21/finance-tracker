@@ -1,12 +1,10 @@
 import { monthLabel, dateLabel } from "./dates";
-import { useMemo, useState, type FormEvent } from "react";
-import { motion } from "motion/react";
+import { lazy, Suspense, useMemo, useState, type FormEvent } from "react";
 import {
   ArrowDownLeft,
   ArrowRight,
   ArrowUpRight,
   Check,
-  ChevronRight,
   Clock3,
   Edit3,
   Grid2X2,
@@ -31,7 +29,6 @@ import {
   type JournalEntry,
 } from "../domain";
 import {
-  CategoryIcon,
   EmptyState,
   Field,
   InlineError,
@@ -42,6 +39,7 @@ import {
 import { categoryColors } from "./colors";
 import type { Dispatch, Notify } from "./AppShell";
 import "./forms.css";
+const LedgerList = lazy(() => import("./LedgerList"));
 
 export function EntrySheet({
   state,
@@ -127,10 +125,10 @@ export function EntrySheet({
         );
       notify(
         editing
-          ? "Updated, with the original safely preserved."
+          ? "Correction saved"
           : mode === "income"
-            ? "A little more possibility. Earnings added to Savings."
-            : "Recorded. Your envelope is up to date.",
+            ? "Earnings added to Savings"
+            : "Expense recorded",
       );
       onClose();
     } catch (err) {
@@ -143,16 +141,12 @@ export function EntrySheet({
     <Sheet
       title={
         editing
-          ? "A small correction."
+          ? "Edit transaction"
           : mode === "income"
-            ? "Something came your way."
-            : "A little everyday."
+            ? "Add earnings"
+            : "Add expense"
       }
-      description={
-        mode === "income"
-          ? "Every earning lands in Savings, ready for a little intention."
-          : "Choose its envelope. We’ll keep the rest in order."
-      }
+      description={mode === "income" ? "Added to Savings." : undefined}
       onClose={onClose}
     >
       <form onSubmit={(event) => void submit(event)} className="entry-form">
@@ -173,7 +167,7 @@ export function EntrySheet({
         </Field>
         {mode === "expense" && (
           <>
-            <Field label="Its place">
+            <Field label="Category">
               <select
                 aria-label="Category"
                 value={category}
@@ -181,7 +175,7 @@ export function EntrySheet({
                 required
               >
                 <option value="" disabled>
-                  Choose an envelope
+                  Choose category
                 </option>
                 {state.categories
                   .filter((c) => !c.archived || c.id === editing?.categoryId)
@@ -198,7 +192,7 @@ export function EntrySheet({
               >
                 <span>
                   {budget
-                    ? "Available in this envelope"
+                    ? "Budget available"
                     : "This category needs a funded budget"}
                 </span>
                 <strong>{formatMoney(available)}</strong>
@@ -214,7 +208,7 @@ export function EntrySheet({
           </>
         )}
         <div className="form-two">
-          <Field label="When">
+          <Field label="Date">
             <input
               aria-label="Transaction date"
               type="date"
@@ -224,14 +218,10 @@ export function EntrySheet({
               required
             />
           </Field>
-          <Field label="A note, if you like">
+          <Field label="Note · optional">
             <input
               aria-label="Transaction note"
-              placeholder={
-                mode === "income"
-                  ? "Salary, a side project…"
-                  : "Coffee, a good lunch…"
-              }
+              placeholder={mode === "income" ? "Salary" : "Lunch"}
               value={note}
               onChange={(e) => setNote(e.target.value)}
               maxLength={500}
@@ -253,9 +243,6 @@ export function EntrySheet({
               : "Record expense"}{" "}
           <ArrowUpRight size={17} />
         </Submit>
-        <p className="form-reassurance">
-          <ShieldCheck size={13} /> Saved on your device. Works offline.
-        </p>
       </form>
     </Sheet>
   );
@@ -339,8 +326,8 @@ export function BudgetSheet({
       });
       notify(
         scope === "future" || target > state.activeMonth
-          ? "Tomorrow’s plan is ready. No money reserved yet."
-          : "A little room, thoughtfully set aside.",
+          ? "Template saved · funds reserved next month"
+          : "Budget saved",
       );
       onClose();
     } catch (err) {
@@ -351,8 +338,8 @@ export function BudgetSheet({
   };
   return (
     <Sheet
-      title={categoryId ? "A little more room." : "Give it a place."}
-      description="A budget reserves real money. Its expenses always stay yours."
+      title={categoryId ? "Adjust budget" : "New budget"}
+      description="Reserves funds from Savings."
       onClose={onClose}
     >
       <form onSubmit={(event) => void submit(event)} className="entry-form">
@@ -364,7 +351,7 @@ export function BudgetSheet({
             required
           >
             <option value="" disabled>
-              What are you making room for?
+              Choose category
             </option>
             {state.categories
               .filter((c) => !c.archived)
@@ -427,7 +414,7 @@ export function BudgetSheet({
           />
         </Field>
         <fieldset className="scope-picker">
-          <legend>Make it yours</legend>
+          <legend>Applies to</legend>
           {(
             [
               {
@@ -483,10 +470,6 @@ export function BudgetSheet({
                 : "No funds move right now"}
           </span>
           <strong>{formatMoney(Math.abs(difference))}</strong>
-          <small>
-            Savings available · {formatMoney(savingsBalance(state))}. Past
-            months stay unchanged.
-          </small>
         </div>
         <InlineError error={error} />
         <Submit pending={pending}>
@@ -562,21 +545,15 @@ export function CategoryDetail({
         className="category-detail"
         style={{ "--category": cat.color } as React.CSSProperties}
       >
-        <motion.span
-          layoutId={`category-orb-${budget?.id || cat.id}`}
-          className="category-orb large"
-        >
-          <CategoryIcon name={cat.icon} size={27} />
-        </motion.span>
         <p className="eyebrow">
           {budget?.status === "closed"
             ? "CLOSED · HISTORY PRESERVED"
-            : "AVAILABLE IN THIS ENVELOPE"}
+            : "AVAILABLE"}
         </p>
         <Money value={remaining} hidden={hidden} className="detail-amount" />
         <div className="detail-stats">
           <div>
-            <span>Thoughtfully spent</span>
+            <span>Spent</span>
             <Money value={spent} hidden={hidden} />
           </div>
           <div>
@@ -603,31 +580,25 @@ export function CategoryDetail({
         </div>
         <div className="subsection-title">
           <History size={15} />
-          <span>Its little history</span>
+          <span>Expenses</span>
           <span>{entries.length}</span>
         </div>
         {entries.length ? (
-          <div className="detail-entries">
-            {entries.map((e) => (
-              <button key={e.id} onClick={() => onTransaction(e)}>
-                <span className="row-icon">
-                  <ArrowUpRight size={16} />
-                </span>
-                <span>
-                  <strong>
-                    {e.note || (e.kind === "refund" ? "Refund" : cat.name)}
-                  </strong>
-                  <small>{dateLabel(e.date)}</small>
-                </span>
-                <Money value={e.amount} hidden={hidden} />
-                <ChevronRight size={14} />
-              </button>
-            ))}
-          </div>
+          <Suspense
+            fallback={
+              <div className="ledger-loading" aria-label="Loading expenses" />
+            }
+          >
+            <LedgerList
+              entries={entries}
+              hidden={hidden}
+              onSelect={onTransaction}
+            />
+          </Suspense>
         ) : (
           <EmptyState
-            title="A fresh start"
-            description="The things you record here will find their place in this history."
+            title="No expenses"
+            description="Expenses for this month appear here."
           />
         )}
         {budget?.status === "open" && month === state.activeMonth && (
@@ -636,7 +607,7 @@ export function CategoryDetail({
               className="quiet-button danger-text"
               onClick={() => setClosing(!closing)}
             >
-              <Trash2 size={14} /> Close this envelope
+              <Trash2 size={14} /> Close budget
             </button>
             {closing && (
               <div className="confirm-box">
@@ -676,7 +647,7 @@ export function CategoryDetail({
               }
             }}
           >
-            <RotateCcw size={15} /> Reopen this envelope
+            <RotateCcw size={15} /> Reopen budget
           </button>
         )}
       </div>
@@ -768,10 +739,7 @@ export function TransactionDetail({
   return (
     <Sheet
       title={
-        entry.note ||
-        (isIncome
-          ? "A little more possibility."
-          : cat?.name || "Record details")
+        entry.note || (isIncome ? "Earnings" : cat?.name || "Record details")
       }
       description={dateLabel(entry.date)}
       onClose={onClose}
@@ -786,7 +754,7 @@ export function TransactionDetail({
             ? "Earnings → Savings"
             : entry.kind === "refund"
               ? "Refund"
-              : `${cat?.name || "Legacy"} envelope`}
+              : cat?.name || "Legacy expense"}
         </span>
         {entry.legacyId && (
           <span className="legacy-label">
@@ -901,11 +869,7 @@ export function SavingsSheet({
     .slice()
     .reverse();
   return (
-    <Sheet
-      title="Room for tomorrow."
-      description="Your Savings. Every earning, allocation, and little return."
-      onClose={onClose}
-    >
+    <Sheet title="Savings" onClose={onClose}>
       <div className="savings-detail">
         <span className="eyebrow">SAVINGS AVAILABLE</span>
         <Money
@@ -913,47 +877,27 @@ export function SavingsSheet({
           hidden={hidden}
           className="detail-amount"
         />
-        <p className="muted">
-          Money waiting for a purpose. Fund a category, or let it stay right
-          here.
-        </p>
         <button className="button primary" onClick={onIncome}>
           <Plus size={16} /> Add earnings
         </button>
         <div className="subsection-title">
           <Clock3 size={15} />
-          <span>The movement of things</span>
+          <span>History</span>
         </div>
-        <div className="detail-entries">
-          {entries.slice(0, 150).map((e) => (
-            <div key={e.id}>
-              <span className="row-icon">
-                {e.savingsDelta > 0 ? (
-                  <ArrowDownLeft size={16} />
-                ) : (
-                  <ArrowUpRight size={16} />
-                )}
-              </span>
-              <span>
-                <strong>{e.note || e.kind.replace(/-/g, " ")}</strong>
-                <small>
-                  {dateLabel(e.date)} · {e.kind}
-                </small>
-              </span>
-              <Money value={e.savingsDelta} hidden={hidden} />
-            </div>
-          ))}
-        </div>
-        {entries.length > 150 && (
-          <p className="muted">
-            Showing the latest 150 movements. The complete journal is in your
-            backup.
-          </p>
-        )}
+        <Suspense
+          fallback={
+            <div
+              className="ledger-loading"
+              aria-label="Loading savings history"
+            />
+          }
+        >
+          <LedgerList entries={entries} hidden={hidden} savings />
+        </Suspense>
         {!entries.length && (
           <EmptyState
-            title="Good things start somewhere."
-            description="Your first earning will land right here."
+            title="No earnings yet"
+            description="New earnings are added to Savings."
           />
         )}
       </div>

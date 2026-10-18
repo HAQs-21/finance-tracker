@@ -1,6 +1,7 @@
 import "./reports.css";
 import { dateLabel } from "./dates";
-import { useMemo, useState } from "react";
+import { memo, useDeferredValue, useMemo, useState } from "react";
+import { MonthPicker } from "./MonthPicker";
 import { useViewState } from "./useViewState";
 import { Virtuoso } from "react-virtuoso";
 import {
@@ -20,19 +21,23 @@ import {
 import { CategoryIcon, EmptyState, Money } from "./primitives";
 
 type FeedRow = { date?: string; count?: number; entry?: JournalEntry };
-export default function Activity({
+function Activity({
   state,
+  month,
+  setMonth,
   hidden,
   onSelect,
   onAdd,
 }: {
   state: FinanceState;
+  month: string;
+  setMonth: (month: string) => void;
   hidden: boolean;
   onSelect: (entry: JournalEntry) => void;
   onAdd: () => void;
 }) {
   const [search, setSearch] = useViewState(`${state.id}:activity:search`, "");
-  const [type, setType] = useViewState(`${state.id}:activity:type`, "all");
+  const [type, setType] = useViewState(`${state.id}:activity:type`, "expense");
   const [sort, setSort] = useViewState(`${state.id}:activity:sort`, "date");
   const [category, setCategory] = useViewState(
     `${state.id}:activity:category`,
@@ -47,14 +52,16 @@ export default function Activity({
     [state.categories],
   );
   const entries = useMemo(() => getActiveEntries(state), [state]);
+  const deferredSearch = useDeferredValue(search);
   const filtered = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase();
+    const query = deferredSearch.trim().toLocaleLowerCase();
     const list = entries.filter(
       (e) =>
         (type === "all" || e.kind === type) &&
         (category === "all" || e.categoryId === category) &&
-        (!from || e.date >= from) &&
-        (!to || e.date <= to) &&
+        (month === "all"
+          ? (!from || e.date >= from) && (!to || e.date <= to)
+          : e.month === month) &&
         (!query ||
           `${e.note} ${categoryMap.get(e.categoryId || "")?.name || "Earnings"}`
             .toLocaleLowerCase()
@@ -80,7 +87,17 @@ export default function Activity({
               ) || 0)
             : b.date.localeCompare(a.date),
     );
-  }, [entries, search, type, category, from, to, sort, categoryMap]);
+  }, [
+    entries,
+    deferredSearch,
+    type,
+    category,
+    from,
+    to,
+    sort,
+    categoryMap,
+    month,
+  ]);
   const rows = useMemo<FeedRow[]>(() => {
     const list: FeedRow[] = [];
     if (sort !== "date") return filtered.map((entry) => ({ entry }));
@@ -98,7 +115,8 @@ export default function Activity({
   }, [filtered, collapsed, sort]);
   const reset = () => {
     setSearch("");
-    setType("all");
+    setType("expense");
+    setMonth(state.activeMonth);
     setCategory("all");
     setFrom("");
     setTo("");
@@ -106,20 +124,13 @@ export default function Activity({
   return (
     <div className="activity-page">
       <div className="page-heading">
-        <div>
-          <p className="eyebrow">
-            <span className="tiny-line" /> THE LITTLE THINGS ADD UP
-          </p>
-          <h1>
-            Your days, <em>in detail.</em>
-          </h1>
-          <p className="page-subtitle">
-            The everyday, the unexpected, and everything in between.
-          </p>
-        </div>
-        <span className="record-count">
-          <strong>{entries.length}</strong> little moments
-        </span>
+        <h1>Expenses</h1>
+        <MonthPicker
+          value={month}
+          onChange={setMonth}
+          allowAll
+          label="Choose expense month"
+        />
       </div>
       <div className="activity-toolbar">
         <div className="search-field">
@@ -127,7 +138,7 @@ export default function Activity({
           <input
             data-search
             aria-label="Search transactions"
-            placeholder="Find a coffee, a category, a moment…"
+            placeholder="Search records"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -149,13 +160,13 @@ export default function Activity({
           aria-expanded={filters}
         >
           <SlidersHorizontal size={16} />
-          <span>Refine</span>
+          <span>Filters</span>
         </button>
       </div>
       <div className="activity-controls">
         <div className="pill-tabs" aria-label="Transaction type">
           {[
-            ["all", "Everything"],
+            ["all", "All"],
             ["expense", "Expenses"],
             ["income", "Earnings"],
             ["refund", "Refunds"],
@@ -207,7 +218,10 @@ export default function Activity({
               aria-label="From date"
               type="date"
               value={from}
-              onChange={(e) => setFrom(e.target.value)}
+              onChange={(e) => {
+                setFrom(e.target.value);
+                setMonth("all");
+              }}
             />
           </label>
           <label>
@@ -216,7 +230,10 @@ export default function Activity({
               aria-label="To date"
               type="date"
               value={to}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={(e) => {
+                setTo(e.target.value);
+                setMonth("all");
+              }}
             />
           </label>
           <button className="quiet-button" onClick={reset}>
@@ -225,7 +242,15 @@ export default function Activity({
         </div>
       )}
       <div className="feed-label">
-        <span>THE RECORD</span>
+        <span>
+          {type === "all"
+            ? "Records"
+            : type === "income"
+              ? "Earnings"
+              : type === "refund"
+                ? "Refunds"
+                : "Expenses"}
+        </span>
         <span>
           {filtered.length} {filtered.length === 1 ? "entry" : "entries"}
         </span>
@@ -316,22 +341,18 @@ export default function Activity({
         />
       ) : (
         <EmptyState
-          title={
-            entries.length
-              ? "Nothing here, just yet."
-              : "Your story starts here."
-          }
+          title={entries.length ? "No matching records" : "No expenses yet"}
           description={
             entries.length
-              ? "Try another search or give your filters a little room."
-              : "Add your earnings, fund an envelope, and start recording the everyday."
+              ? "Choose another month or reset filters."
+              : "Add an expense to a funded budget."
           }
         >
           <button
             className="button secondary"
             onClick={entries.length ? reset : onAdd}
           >
-            {entries.length ? "Reset filters" : "Record a moment"}{" "}
+            {entries.length ? "Reset filters" : "Add expense"}{" "}
             <ArrowUpRight size={16} />
           </button>
         </EmptyState>
@@ -339,3 +360,4 @@ export default function Activity({
     </div>
   );
 }
+export default memo(Activity);

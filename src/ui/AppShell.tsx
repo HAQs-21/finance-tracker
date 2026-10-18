@@ -6,36 +6,35 @@ import {
   useEffectEvent,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import {
-  AnimatePresence,
-  LayoutGroup,
-  MotionConfig,
-  motion,
-} from "motion/react";
-import {
-  ArrowDownLeft,
-  ArrowUpRight,
   ChartNoAxesCombined,
   Check,
-  ChevronRight,
   CircleHelp,
   Eye,
   EyeOff,
   Grid2X2,
   History,
+  LockKeyhole,
   Plus,
   Settings2,
-  ShieldCheck,
   X,
 } from "lucide-react";
 import {
-  localDate,
   type FinanceCommand,
   type FinanceState,
   type JournalEntry,
 } from "../domain";
 import { useFinanceStore } from "../data/store";
+import {
+  privateSavingsScreen,
+  savingsPrivacyStatus,
+  unlockSavings,
+  type SavingsPrivacyStatus,
+  type SavingsProtection,
+} from "../data/privacy";
 import { Logo } from "./brand";
 import { Plan } from "./Plan";
 import { UpdateNotice } from "./UpdateNotice";
@@ -58,29 +57,34 @@ export type Preferences = {
   motion: "user" | "always";
   haptics: boolean;
   theme: "ink" | "charcoal";
+  savingsProtection: SavingsProtection;
 };
 const tabs = [
-  { id: "plan" as const, label: "My plan", icon: Grid2X2 },
-  { id: "activity" as const, label: "Activity", icon: History },
-  { id: "insights" as const, label: "Insights", icon: ChartNoAxesCombined },
-  { id: "settings" as const, label: "My space", icon: Settings2 },
+  { id: "plan" as const, label: "Budgets", icon: Grid2X2 },
+  { id: "activity" as const, label: "Expenses", icon: History },
+  { id: "insights" as const, label: "Reports", icon: ChartNoAxesCombined },
+  { id: "settings" as const, label: "Settings", icon: Settings2 },
 ];
 function readPreferences(): Preferences {
+  const defaults: Preferences = {
+    conceal: false,
+    motion: "user",
+    haptics: true,
+    theme: "ink",
+    savingsProtection: "auto",
+  };
   try {
     return {
-      conceal: false,
-      motion: "user",
-      haptics: true,
-      theme: "ink",
+      ...defaults,
       ...JSON.parse(localStorage.getItem("morrow.preferences") || "{}"),
     };
   } catch {
-    return { conceal: false, motion: "user", haptics: true, theme: "ink" };
+    return defaults;
   }
 }
 function initialTab(): Tab {
   const tab = window.location.hash.slice(1);
-  return tabs.some((t) => t.id === tab) ? (tab as Tab) : "plan";
+  return tabs.some((item) => item.id === tab) ? (tab as Tab) : "plan";
 }
 
 export function AppShell({
@@ -102,9 +106,19 @@ export function AppShell({
   const [category, setCategory] = useState<string | null>(null);
   const [transaction, setTransaction] = useState<JournalEntry | null>(null);
   const [savingsOpen, setSavingsOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+  const [privacy, setPrivacy] = useState<SavingsPrivacyStatus>({
+    native: false,
+    available: false,
+  });
   const [guide, setGuide] = useState(false);
-  const [migrationVisible, setMigrationVisible] = useState(true);
+  const [migrationVisible, setMigrationVisible] = useState(() => {
+    try {
+      return !localStorage.getItem(`morrow.migrationSeen.${state.id}`);
+    } catch {
+      return true;
+    }
+  });
   const [toast, setToast] = useState<{
     text: string;
     error: boolean;
@@ -112,6 +126,74 @@ export function AppShell({
   } | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const guideButton = useRef<HTMLButtonElement>(null);
+  const haptic = useCallback(
+    async (error = false) => {
+      if (!preferences.haptics) return;
+      try {
+        const { Haptics, NotificationType, ImpactStyle } =
+          await import("@capacitor/haptics");
+        if (error)
+          await Haptics.notification({ type: NotificationType.Warning });
+        else await Haptics.impact({ style: ImpactStyle.Light });
+      } catch {
+        /* Optional hardware. */
+      }
+    },
+    [preferences.haptics],
+  );
+  const notify = useCallback<Notify>(
+    (text, error = false) => {
+      setToast({ text, error, id: Date.now() });
+      void haptic(error);
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      toastTimer.current = setTimeout(
+        () => setToast(null),
+        error ? 6000 : 2200,
+      );
+    },
+    [haptic],
+  );
+  useEffect(
+    () => () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    },
+    [],
+  );
+  useEffect(() => {
+    document.documentElement.dataset.theme = preferences.theme;
+    document.documentElement.dataset.motion = preferences.motion;
+    try {
+      localStorage.setItem("morrow.preferences", JSON.stringify(preferences));
+    } catch {
+      /* Ledger storage is independent. */
+    }
+  }, [preferences]);
+  useEffect(() => {
+    const changed = () => {
+      setTab(initialTab());
+      window.scrollTo(0, 0);
+    };
+    window.addEventListener("hashchange", changed);
+    return () => window.removeEventListener("hashchange", changed);
+  }, []);
+  useEffect(() => {
+    const changed = () => {
+      if (document.hidden) setSavingsOpen(false);
+    };
+    document.addEventListener("visibilitychange", changed);
+    void savingsPrivacyStatus()
+      .then(setPrivacy)
+      .catch(() => undefined);
+    return () => document.removeEventListener("visibilitychange", changed);
+  }, []);
+  useEffect(() => {
+    if (savingsOpen) return;
+    // Keep screenshots blocked until the closing sheet has left the screen.
+    const timer = setTimeout(() => {
+      void privateSavingsScreen(false).catch(() => undefined);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [savingsOpen]);
   useEffect(() => {
     if (!guide) return;
     const previous = document.activeElement as HTMLElement | null;
@@ -132,53 +214,71 @@ export function AppShell({
       previous?.focus();
     };
   }, [guide]);
-  const haptic = useCallback(
-    async (error = false) => {
-      if (!preferences.haptics) return;
-      try {
-        const { Haptics, NotificationType, ImpactStyle } =
-          await import("@capacitor/haptics");
-        if (error)
-          await Haptics.notification({ type: NotificationType.Warning });
-        else await Haptics.impact({ style: ImpactStyle.Light });
-      } catch {
-        /* Optional device capability. */
-      }
-    },
-    [preferences.haptics],
-  );
-  const notify = useCallback<Notify>(
-    (text, error = false) => {
-      setToast({ text, error, id: Date.now() });
-      void haptic(error);
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-      toastTimer.current = setTimeout(
-        () => setToast(null),
-        error ? 7000 : 3800,
-      );
+  const navigate = useCallback(
+    (next: Tab) => {
+      setTab(next);
+      window.location.hash = next;
+      window.scrollTo(0, 0);
+      void haptic();
     },
     [haptic],
   );
-  useEffect(
-    () => () => {
-      if (toastTimer.current) clearTimeout(toastTimer.current);
-    },
-    [],
-  );
-  useEffect(() => {
-    const changed = () => setTab(initialTab());
-    window.addEventListener("hashchange", changed);
-    return () => window.removeEventListener("hashchange", changed);
+  const showIncome = useCallback(() => setEntry({ type: "income" }), []);
+  const showBudget = useCallback((id?: string) => setBudget(id || true), []);
+  const openExpense = useCallback((id?: string) => {
+    setCategory(null);
+    setEntry({ type: "expense", categoryId: id });
   }, []);
-  useEffect(() => {
-    document.documentElement.dataset.theme = preferences.theme;
-    document.documentElement.dataset.motion = preferences.motion;
+  const showExpenses = useCallback(() => navigate("activity"), [navigate]);
+  const showSavings = useCallback(async () => {
+    setUnlocking(true);
     try {
-      localStorage.setItem("morrow.preferences", JSON.stringify(preferences));
-    } catch {
-      /* Financial storage has independent error reporting. */
+      await unlockSavings(preferences.savingsProtection);
+      await privateSavingsScreen(true);
+      setSavingsOpen(true);
+    } catch (error) {
+      if ((error as { code?: string }).code !== "AUTH_CANCELLED")
+        notify(error instanceof Error ? error.message : String(error), true);
+    } finally {
+      setUnlocking(false);
     }
-  }, [preferences]);
+  }, [preferences.savingsProtection, notify]);
+  const closeSavings = useCallback(() => setSavingsOpen(false), []);
+  const nativeBack = useEffectEvent(() => {
+    if (guide) {
+      setGuide(false);
+      return;
+    }
+    if (document.querySelector('[role="dialog"]')) {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+      return;
+    }
+    if (tab !== "plan") navigate("plan");
+    else void import("@capacitor/app").then(({ App }) => App.minimizeApp());
+  });
+  useEffect(() => {
+    let disposed = false;
+    const removers: (() => void)[] = [];
+    void import("@capacitor/app")
+      .then(async ({ App }) => {
+        for (const listener of [
+          await App.addListener("backButton", () => nativeBack()),
+          await App.addListener("appStateChange", ({ isActive }) => {
+            if (!isActive) setSavingsOpen(false);
+          }),
+        ]) {
+          if (disposed) void listener.remove();
+          else removers.push(() => void listener.remove());
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      disposed = true;
+      removers.forEach((remove) => remove());
+    };
+  }, []);
   useEffect(() => {
     const shortcuts = (event: KeyboardEvent) => {
       if (
@@ -187,7 +287,7 @@ export function AppShell({
         !document.querySelector('[role="dialog"]')
       ) {
         event.preventDefault();
-        window.location.hash = "activity";
+        navigate("activity");
         setTimeout(
           () =>
             document.querySelector<HTMLInputElement>("[data-search]")?.focus(),
@@ -197,408 +297,295 @@ export function AppShell({
     };
     window.addEventListener("keydown", shortcuts);
     return () => window.removeEventListener("keydown", shortcuts);
-  }, []);
-  const nativeBack = useEffectEvent(() => {
-    if (guide) {
-      setGuide(false);
-      return;
-    }
-    if (menuOpen) {
-      setMenuOpen(false);
-      return;
-    }
-    if (document.querySelector('[role="dialog"]')) {
-      document.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
-      );
-      return;
-    }
-    if (tab !== "plan") window.location.assign("#plan");
-    else void import("@capacitor/app").then(({ App }) => App.minimizeApp());
-  });
-  useEffect(() => {
-    let remove: (() => void) | undefined;
-    let disposed = false;
-    void import("@capacitor/app")
-      .then(async ({ App }) => {
-        const listener = await App.addListener("backButton", () =>
-          nativeBack(),
-        );
-        if (disposed) void listener.remove();
-        else remove = () => void listener.remove();
-      })
-      .catch(() => undefined);
-    return () => {
-      disposed = true;
-      remove?.();
-    };
-  }, []);
-  const navigate = (next: Tab) => {
-    window.location.assign(`#${next}`);
-    void haptic();
-    setMenuOpen(false);
-  };
-  const openExpense = (id?: string) => {
-    setCategory(null);
-    setEntry({ type: "expense", categoryId: id });
-    setMenuOpen(false);
-  };
-  const headerDate = new Date(`${localDate()}T12:00:00`).toLocaleDateString(
-    "en",
-    { weekday: "long", day: "numeric", month: "long" },
-  );
+  }, [navigate]);
+  const activeIndex = tabs.findIndex((item) => item.id === tab);
   return (
     <MotionConfig reducedMotion={preferences.motion}>
-      <LayoutGroup>
-        <div className="app-layout">
-          <aside className="sidebar">
-            <a href="#plan" className="brand" aria-label="Morrow home">
-              <Logo size={40} />
-              <span className="wordmark">morrow</span>
-            </a>
-            <div className="sidebar-intro">
-              A little intention.
-              <br />A lot more possibility.
-            </div>
-            <nav aria-label="Main navigation">
-              {tabs.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => navigate(item.id)}
-                  className={`nav-item ${tab === item.id ? "active" : ""}`}
-                  aria-current={tab === item.id ? "page" : undefined}
-                >
-                  {tab === item.id && (
-                    <motion.span
-                      layoutId="desktop-nav"
-                      className="nav-background"
-                    />
-                  )}
-                  <item.icon size={19} />
-                  <span>{item.label}</span>
-                  {tab === item.id && <span className="nav-dot" />}
-                </button>
-              ))}
-            </nav>
-            <div className="sidebar-bottom">
-              <div className="local-status">
-                <span className="status-dot" />
-                <span>Yours. Even offline.</span>
-                <ShieldCheck size={14} />
-              </div>
-              <button onClick={() => setGuide(true)} className="quiet-button">
-                <CircleHelp size={16} /> A quick introduction{" "}
-                <ChevronRight size={14} />
-              </button>
-              <span className="version">MORROW / 01.00</span>
-            </div>
-          </aside>
-          <div className="workspace">
-            <header className="topbar">
-              <a href="#plan" className="mobile-brand">
-                <Logo size={27} />
-                <span className="wordmark">morrow</span>
-              </a>
-              <div className="desktop-breadcrumb">
-                Your everyday, thoughtfully arranged <span>/</span>{" "}
-                {tabs.find((t) => t.id === tab)?.label}
-              </div>
-              <div className="topbar-actions">
-                <span className="today-label">{headerDate}</span>
-                <button
-                  className="icon-button"
-                  onClick={() =>
-                    setPreferences((p) => ({ ...p, conceal: !p.conceal }))
-                  }
-                  aria-label={
-                    preferences.conceal ? "Show amounts" : "Hide amounts"
-                  }
-                  aria-pressed={preferences.conceal}
-                >
-                  {preferences.conceal ? (
-                    <EyeOff size={18} />
-                  ) : (
-                    <Eye size={18} />
-                  )}
-                </button>
-                <button
-                  className="avatar"
-                  onClick={() => navigate("settings")}
-                  aria-label="Open my space"
-                >
-                  M<span />
-                </button>
-              </div>
-            </header>
-            <main id="main-content" className="main-content">
-              <UpdateNotice />
-              {store.migrationReport && migrationVisible && (
-                <div className="migration-notice">
-                  <ShieldCheck size={19} />
-                  <div>
-                    <strong>Your history has a new home.</strong>
-                    <span>
-                      Existing records were preserved. Review the migration
-                      report in My space.
-                    </span>
-                  </div>
-                  <button
-                    className="icon-button"
-                    onClick={() => setMigrationVisible(false)}
-                    aria-label="Dismiss migration notice"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              )}
-              <AnimatePresence mode="wait" initial={false}>
-                <motion.div
-                  key={tab}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <Suspense
-                    fallback={
-                      <div className="page-skeleton">
-                        <div />
-                        <div />
-                        <div />
-                      </div>
-                    }
-                  >
-                    {tab === "plan" && (
-                      <Plan
-                        state={state}
-                        month={month}
-                        setMonth={setMonth}
-                        hidden={preferences.conceal}
-                        onIncome={() => setEntry({ type: "income" })}
-                        onBudget={(id) => setBudget(id || true)}
-                        onCategory={setCategory}
-                        onSavings={() => setSavingsOpen(true)}
-                        onExpense={openExpense}
-                        dispatch={store.dispatch}
-                        notify={notify}
-                      />
-                    )}
-                    {tab === "activity" && (
-                      <Activity
-                        state={state}
-                        hidden={preferences.conceal}
-                        onSelect={setTransaction}
-                        onAdd={openExpense}
-                      />
-                    )}
-                    {tab === "insights" && (
-                      <Insights state={state} hidden={preferences.conceal} />
-                    )}
-                    {tab === "settings" && (
-                      <Settings
-                        store={store}
-                        preferences={preferences}
-                        setPreferences={setPreferences}
-                        notify={notify}
-                        onRecover={onRecover}
-                      />
-                    )}
-                  </Suspense>
-                </motion.div>
-              </AnimatePresence>
-              <footer className="page-footer">
-                <Logo size={17} />
-                <span>Make room for tomorrow.</span>
-                <span className="footer-rule" />
-                <span>Made for a little peace of mind.</span>
-              </footer>
-            </main>
-          </div>
-          <nav className="mobile-nav" aria-label="Mobile navigation">
+      <div className="app-layout">
+        <aside className="sidebar">
+          <a href="#plan" className="brand" aria-label="Morrow home">
+            <Logo size={30} />
+            <span className="wordmark">morrow</span>
+          </a>
+          <nav aria-label="Main navigation">
             {tabs.map((item) => (
               <button
                 key={item.id}
                 onClick={() => navigate(item.id)}
+                className={`nav-item ${tab === item.id ? "active" : ""}`}
                 aria-current={tab === item.id ? "page" : undefined}
-                className={tab === item.id ? "active" : ""}
               >
-                {tab === item.id && (
-                  <motion.span
-                    layoutId="mobile-nav"
-                    className="mobile-nav-highlight"
-                  />
-                )}
-                <item.icon size={21} />
-                <span>{item.id === "plan" ? "Plan" : item.label}</span>
+                <item.icon size={19} />
+                <span>{item.label}</span>
               </button>
             ))}
           </nav>
-          <div className="add-dock">
-            <AnimatePresence>
-              {menuOpen && (
-                <motion.div
-                  className="add-menu"
-                  initial={{ opacity: 0, y: 12, scale: 0.94 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.94 }}
-                >
-                  <button onClick={() => openExpense()}>
-                    <ArrowUpRight size={17} /> Record expense
-                  </button>
-                  <button
-                    onClick={() => {
-                      setEntry({ type: "income" });
-                      setMenuOpen(false);
-                    }}
-                  >
-                    <ArrowDownLeft size={17} /> Add earnings
-                  </button>
-                  <button
-                    onClick={() => {
-                      setBudget(true);
-                      setMenuOpen(false);
-                    }}
-                  >
-                    <Grid2X2 size={17} /> Create a budget
-                  </button>
-                </motion.div>
-              )}
-            </AnimatePresence>
-            <button
-              className={`add-button ${menuOpen ? "opened" : ""}`}
-              onClick={() => setMenuOpen(!menuOpen)}
-              aria-expanded={menuOpen}
-              aria-label="Add transaction or budget"
-            >
-              <Plus size={23} />
-              <span>Add new</span>
+          <div className="sidebar-bottom">
+            <button onClick={() => setGuide(true)} className="quiet-button">
+              <CircleHelp size={16} /> How budgets work
             </button>
+            <span className="version">Offline · 1.1.0</span>
           </div>
-          <AnimatePresence>
-            {entry && (
-              <EntrySheet
-                key={`${entry.type}-${entry.categoryId || ""}`}
-                state={state}
-                mode={entry.type}
-                categoryId={entry.categoryId}
-                dispatch={store.dispatch}
-                onClose={() => setEntry(null)}
-                notify={notify}
-              />
-            )}
-            {budget && (
-              <BudgetSheet
-                key={String(budget)}
-                state={state}
-                month={month}
-                categoryId={typeof budget === "string" ? budget : undefined}
-                dispatch={store.dispatch}
-                onClose={() => setBudget(null)}
-                notify={notify}
-              />
-            )}
-            {category && (
-              <CategoryDetail
-                state={state}
-                categoryId={category}
-                month={month}
-                hidden={preferences.conceal}
-                onClose={() => setCategory(null)}
-                onExpense={() => openExpense(category)}
-                onBudget={() => {
-                  setBudget(category);
-                  setCategory(null);
-                }}
-                onTransaction={(t) => {
-                  setTransaction(t);
-                  setCategory(null);
-                }}
-                dispatch={store.dispatch}
-                notify={notify}
-              />
-            )}
-            {transaction && (
-              <TransactionDetail
-                state={state}
-                entry={transaction}
-                dispatch={store.dispatch}
-                onClose={() => setTransaction(null)}
-                notify={notify}
-              />
-            )}
-            {savingsOpen && (
-              <SavingsSheet
-                state={state}
-                hidden={preferences.conceal}
-                onClose={() => setSavingsOpen(false)}
-                onIncome={() => {
-                  setSavingsOpen(false);
-                  setEntry({ type: "income" });
-                }}
-              />
-            )}
-          </AnimatePresence>
-          <AnimatePresence>
-            {toast && (
-              <motion.div
-                key={toast.id}
-                className={`toast ${toast.error ? "error" : ""}`}
-                role={toast.error ? "alert" : "status"}
-                initial={{ opacity: 0, y: 20, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 12 }}
+        </aside>
+        <div className="workspace">
+          <header className="topbar">
+            <a href="#plan" className="mobile-brand">
+              <Logo size={26} />
+              <span className="wordmark">morrow</span>
+            </a>
+            <div className="topbar-actions">
+              <button
+                className="savings-access"
+                onClick={() => void showSavings()}
+                disabled={unlocking}
+                aria-label="Open Savings"
               >
-                <span className="toast-icon">
-                  {toast.error ? <CircleHelp size={17} /> : <Check size={17} />}
-                </span>
-                <span>{toast.text}</span>
+                <LockKeyhole size={16} />
+                <span>{unlocking ? "Unlocking" : "Savings"}</span>
+              </button>
+              <button
+                className="icon-button"
+                onClick={() =>
+                  setPreferences((current) => ({
+                    ...current,
+                    conceal: !current.conceal,
+                  }))
+                }
+                aria-label={
+                  preferences.conceal ? "Show amounts" : "Hide amounts"
+                }
+                aria-pressed={preferences.conceal}
+              >
+                {preferences.conceal ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </header>
+          <main id="main-content" className="main-content">
+            <UpdateNotice />
+            {store.migrationReport && migrationVisible && (
+              <div className="migration-notice">
+                <button onClick={() => navigate("settings")}>
+                  History imported · Review report
+                </button>
                 <button
-                  onClick={() => setToast(null)}
-                  aria-label="Dismiss notification"
+                  className="icon-button"
+                  aria-label="Dismiss migration notice"
+                  onClick={() => {
+                    setMigrationVisible(false);
+                    try {
+                      localStorage.setItem(
+                        `morrow.migrationSeen.${state.id}`,
+                        "1",
+                      );
+                    } catch {
+                      /* Optional preference. */
+                    }
+                  }}
                 >
                   <X size={16} />
                 </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          {guide && (
-            <div
-              className="guide-overlay"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Welcome to Morrow"
-            >
-              <div className="guide-card">
-                <Logo size={65} />
-                <p className="eyebrow">A QUIETER WAY TO MONEY</p>
-                <h2>
-                  Tomorrow looks
-                  <br />
-                  <em>a little lighter.</em>
-                </h2>
-                <p>
-                  Earnings land in Savings. Give each category a funded budget.
-                  Spend what is there, and let next month take care of itself.
-                </p>
-                <div className="guide-steps">
-                  <span>01 / Earn</span>
-                  <ChevronRight size={15} />
-                  <span>02 / Give it a place</span>
-                  <ChevronRight size={15} />
-                  <span>03 / Live a little</span>
-                </div>
-                <button
-                  ref={guideButton}
-                  className="button primary"
-                  onClick={() => setGuide(false)}
-                >
-                  Make yourself at home <ArrowUpRight size={18} />
-                </button>
               </div>
+            )}
+            <div key={tab} className="page-surface">
+              <Suspense
+                fallback={
+                  <div className="page-skeleton">
+                    <div />
+                    <div />
+                  </div>
+                }
+              >
+                {tab === "plan" && (
+                  <Plan
+                    state={state}
+                    month={month === "all" ? state.activeMonth : month}
+                    setMonth={setMonth}
+                    hidden={preferences.conceal}
+                    onIncome={showIncome}
+                    onBudget={showBudget}
+                    onCategory={setCategory}
+                    onExpense={openExpense}
+                    onExpenses={showExpenses}
+                    dispatch={store.dispatch}
+                    notify={notify}
+                  />
+                )}
+                {tab === "activity" && (
+                  <Activity
+                    state={state}
+                    month={month}
+                    setMonth={setMonth}
+                    hidden={preferences.conceal}
+                    onSelect={setTransaction}
+                    onAdd={openExpense}
+                  />
+                )}
+                {tab === "insights" && (
+                  <Insights
+                    state={state}
+                    month={month}
+                    setMonth={setMonth}
+                    hidden={preferences.conceal}
+                  />
+                )}
+                {tab === "settings" && (
+                  <Settings
+                    store={store}
+                    preferences={preferences}
+                    setPreferences={setPreferences}
+                    privacy={privacy}
+                    notify={notify}
+                    onRecover={onRecover}
+                  />
+                )}
+              </Suspense>
             </div>
-          )}
+          </main>
         </div>
-      </LayoutGroup>
+        <nav
+          className="mobile-nav"
+          aria-label="Mobile navigation"
+          style={{ "--tab-index": activeIndex } as CSSProperties}
+        >
+          <span className="nav-cursor" aria-hidden="true" />
+          {tabs.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => navigate(item.id)}
+              aria-current={tab === item.id ? "page" : undefined}
+              className={tab === item.id ? "active" : ""}
+            >
+              <item.icon size={20} />
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+        {(tab === "plan" || tab === "activity") && (
+          <div className="add-dock">
+            <button
+              className="add-button"
+              onClick={() => openExpense()}
+              aria-label="Add expense"
+            >
+              <Plus size={22} />
+              <span>Expense</span>
+            </button>
+          </div>
+        )}
+        <AnimatePresence>
+          {entry && (
+            <EntrySheet
+              key={`${entry.type}-${entry.categoryId || ""}`}
+              state={state}
+              mode={entry.type}
+              categoryId={entry.categoryId}
+              dispatch={store.dispatch}
+              onClose={() => setEntry(null)}
+              notify={notify}
+            />
+          )}
+          {budget && (
+            <BudgetSheet
+              key={String(budget)}
+              state={state}
+              month={month === "all" ? state.activeMonth : month}
+              categoryId={typeof budget === "string" ? budget : undefined}
+              dispatch={store.dispatch}
+              onClose={() => setBudget(null)}
+              notify={notify}
+            />
+          )}
+          {category && (
+            <CategoryDetail
+              state={state}
+              categoryId={category}
+              month={month === "all" ? state.activeMonth : month}
+              hidden={preferences.conceal}
+              onClose={() => setCategory(null)}
+              onExpense={() => openExpense(category)}
+              onBudget={() => {
+                setBudget(category);
+                setCategory(null);
+              }}
+              onTransaction={(entry) => {
+                setTransaction(entry);
+                setCategory(null);
+              }}
+              dispatch={store.dispatch}
+              notify={notify}
+            />
+          )}
+          {transaction && (
+            <TransactionDetail
+              state={state}
+              entry={transaction}
+              dispatch={store.dispatch}
+              onClose={() => setTransaction(null)}
+              notify={notify}
+            />
+          )}
+          {savingsOpen && (
+            <SavingsSheet
+              state={state}
+              hidden={false}
+              onClose={closeSavings}
+              onIncome={() => {
+                setSavingsOpen(false);
+                showIncome();
+              }}
+            />
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              key={toast.id}
+              className={`toast ${toast.error ? "error" : ""}`}
+              role={toast.error ? "alert" : "status"}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 8 }}
+              transition={{ duration: 0.16 }}
+            >
+              <span className="toast-icon">
+                {toast.error ? <CircleHelp size={17} /> : <Check size={17} />}
+              </span>
+              <span>{toast.text}</span>
+              <button
+                onClick={() => setToast(null)}
+                aria-label="Dismiss notification"
+              >
+                <X size={16} />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {guide && (
+          <div
+            className="guide-overlay"
+            role="dialog"
+            aria-modal="true"
+            aria-label="How budgets work"
+          >
+            <div className="guide-card">
+              <h2>How budgets work</h2>
+              <ol>
+                <li>Earnings go to Savings.</li>
+                <li>A budget reserves its limit from Savings.</li>
+                <li>Expenses use that category’s funds.</li>
+                <li>Templates repeat next month; past limits stay fixed.</li>
+              </ol>
+              <button
+                ref={guideButton}
+                className="button primary"
+                onClick={() => setGuide(false)}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </MotionConfig>
   );
 }

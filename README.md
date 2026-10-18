@@ -14,9 +14,9 @@ Release verification and device-testing boundaries are documented in [docs/verif
 
 ## Bringing existing records across
 
-Open the browser app on the existing finance-tracker origin. Morrow detects FinanceTrackerApp, snapshots its unmodified source tables, and migrates history with a reconciliation receipt in My space. Old savings transfers are not earnings. Only unspent current budgets reserve funds at cutover. Original records and ambiguous rows remain in the complete recovery file. The old database is retained.
+Open the browser app on the existing finance-tracker origin. Morrow detects FinanceTrackerApp, snapshots its unmodified source tables, and migrates history with a reconciliation receipt in Settings. Old savings transfers are not earnings. Only unspent current budgets reserve funds at cutover. Original records and ambiguous rows remain in the complete recovery file. The old database is retained.
 
-Export My space → Complete JSON in the browser, then Restore JSON in the Android app. Android cannot directly read the browser database. A legacy GitHub data.json file can also be restored through the reviewed JSON restore flow.
+Export Settings → Complete JSON in the browser, then Restore JSON in the Android app. Android cannot directly read the browser database. A legacy GitHub data.json file can also be restored through the reviewed JSON restore flow.
 
 ## Storage and recovery
 
@@ -28,6 +28,6 @@ The signing directory .android-tools/signing is deliberately ignored by Git. Pre
 
 ## Design
 
-Morrow uses a custom folded-ribbon mark, graphite night palettes, locally bundled Manrope and Instrument Serif, spring navigation, animated balances, responsive sheets, and reduced-motion support. Desktop and Android share the same financial rules.
+Morrow uses a custom folded-ribbon mark, graphite night palettes, locally bundled Manrope, compact category cards, transform-based navigation and sheets, animated amounts, and reduced-motion support. Desktop and Android share the same financial rules. Savings is opened separately, with Android device authentication when available. This view lock does not encrypt the database or exported backups.
 
 The previous implementation is preserved in legacy/finance-tracker-source.zip and Git history.

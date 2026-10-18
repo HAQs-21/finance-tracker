@@ -58,17 +58,17 @@ public class NativeLedgerTest {
     }
 
     private void plan() throws Exception {
-        run("__click('Plan','.mobile-nav')");
-        waitFor("document.querySelector('.savings-card')");
+        run("__click('Budgets','.mobile-nav')");
+        waitFor("document.querySelector('.plan-page')");
     }
 
     private void settings() throws Exception {
-        run("__click('My space','.mobile-nav')");
+        run("__click('Settings','.mobile-nav')");
         waitFor("[...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Restore JSON')");
     }
 
     private void earnings(String amount) throws Exception {
-        run("__click('Add earnings','.savings-card')");
+        run("__click('Add earnings','.plan-actions')");
         waitFor("document.querySelector('[role=dialog] input[aria-label=\"Amount in PKR\"]')");
         run("__fill('[role=dialog] input[aria-label=\"Amount in PKR\"]'," + JSONObject.quote(amount) + ")");
         run("__click('Add to Savings','[role=dialog]')");
@@ -124,6 +124,42 @@ public class NativeLedgerTest {
         }
     }
 
+    private String shell(String command) throws Exception {
+        try (android.os.ParcelFileDescriptor descriptor = InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand(command);
+             FileInputStream input = new FileInputStream(descriptor.getFileDescriptor());
+             ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            byte[] bytes = new byte[4096]; int count;
+            while ((count = input.read(bytes)) != -1) output.write(bytes, 0, count);
+            return new String(output.toByteArray(), StandardCharsets.UTF_8);
+        }
+    }
+
+    @Test(timeout = 120000)
+    public void savingsRequiresDeviceCredentialAndClosesInBackground() throws Exception {
+        assumeTrue("Disposable Android emulator required", Build.HARDWARE.contains("ranchu") || Build.HARDWARE.contains("goldfish"));
+        assertTrue(shell("locksettings set-pin 1234").contains("set to"));
+        scenario = ActivityScenario.launch(MainActivity.class);
+        try {
+            waitFor("document.querySelector('.plan-page')"); helpers();
+            run("window.__privacyReload=true;localStorage.setItem('morrow.preferences',JSON.stringify({savingsProtection:'required'}));location.reload()");
+            waitFor("!window.__privacyReload && document.querySelector('.plan-page')"); helpers();
+            assertEquals("false", evaluate("Boolean(document.querySelector('.savings-detail'))"));
+            run("document.querySelector('[aria-label=\"Open Savings\"]').click()");
+            SystemClock.sleep(1000);
+            assertEquals("false", evaluate("Boolean(document.querySelector('.savings-detail'))"));
+            shell("input text 1234"); shell("input keyevent 66");
+            waitFor("document.querySelector('.savings-detail')");
+            scenario.onActivity(activity -> assertTrue((activity.getWindow().getAttributes().flags & android.view.WindowManager.LayoutParams.FLAG_SECURE) != 0));
+            scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED);
+            scenario.moveToState(androidx.lifecycle.Lifecycle.State.RESUMED);
+            waitFor("!document.querySelector('.savings-detail')");
+            run("localStorage.removeItem('morrow.preferences')");
+        } finally {
+            scenario.close();
+            shell("locksettings clear --old 1234");
+        }
+    }
+
     @Test(timeout = 240000)
     public void startupSpendingExportRestoreAndDamagedDatabaseRecovery() throws Exception {
         // Never mutate a person's phone. The CLI invocation additionally targets one emulator serial.
@@ -133,7 +169,7 @@ public class NativeLedgerTest {
         if (exported.exists()) assertTrue(exported.delete());
         scenario = ActivityScenario.launch(MainActivity.class);
         try {
-            waitFor("document.querySelector('.savings-card')");
+            waitFor("document.querySelector('.plan-page')");
             helpers();
             assertEquals(7, scalar("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('metadata','archives','categories','templates','budgets','journal','recoveries')"));
             // Successful startup itself regresses the PRAGMA-through-execSQL crash.
@@ -154,7 +190,7 @@ public class NativeLedgerTest {
             assertEquals(680000, scalar("SELECT SUM(budgetDelta) FROM journal"));
             String original = ledgerRows();
             scenario.recreate();
-            waitFor("document.querySelector('.savings-card')");
+            waitFor("document.querySelector('.plan-page')");
             helpers();
             assertEquals(original, ledgerRows());
 

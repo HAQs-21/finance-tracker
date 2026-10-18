@@ -1,18 +1,28 @@
 import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import type { FinanceState } from "../src/domain/types.ts";
+import {
+  applyCommands,
+  createEmptyState,
+  localDate,
+  serializeBackup,
+} from "../src/domain/index.ts";
 
 async function openApp(page: Page) {
   await page.goto("./");
-  await expect(
-    page.getByRole("heading", { name: /A place for every possibility/i }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Budgets$/i })).toBeVisible();
 }
 
 async function navigate(
   page: Page,
   tab: "My plan" | "Activity" | "Insights" | "My space",
 ) {
+  const label = {
+    "My plan": "Budgets",
+    Activity: "Expenses",
+    Insights: "Reports",
+    "My space": "Settings",
+  }[tab];
   const navigation = page.getByRole("navigation", {
     name: "Main navigation",
     exact: true,
@@ -20,12 +30,12 @@ async function navigate(
   });
   await expect(navigation).toBeAttached();
   if (await navigation.isVisible())
-    await navigation.getByRole("button", { name: tab, exact: true }).click();
+    await navigation.getByRole("button", { name: label, exact: true }).click();
   else
     await page
       .getByRole("navigation", { name: "Mobile navigation" })
       .getByRole("button", {
-        name: tab === "My plan" ? "Plan" : tab,
+        name: label,
         exact: true,
       })
       .click();
@@ -37,11 +47,11 @@ async function addEarnings(
   note = "A project well done",
 ) {
   await page
-    .locator(".savings-card")
+    .locator(".plan-actions")
     .getByRole("button", { name: "Add earnings", exact: true })
     .click();
   const dialog = page.getByRole("dialog", {
-    name: "Something came your way.",
+    name: "Add earnings",
     exact: true,
   });
   await dialog
@@ -56,10 +66,22 @@ async function addEarnings(
   await expect(dialog).toBeHidden();
 }
 
+async function expectSavings(page: Page, value: RegExp) {
+  // Savings never appears until explicitly opened, including when other amounts are visible.
+  await expect(page.locator(".savings-detail")).toHaveCount(0);
+  await page.getByRole("button", { name: "Open Savings", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Savings", exact: true });
+  await expect(dialog.locator(".detail-amount")).toHaveText(value);
+  await dialog
+    .getByRole("button", { name: "Close dialog", exact: true })
+    .click();
+  await expect(dialog).toBeHidden();
+}
+
 async function createBudget(page: Page, category: string, rupees: string) {
   await page.getByRole("button", { name: "New budget", exact: true }).click();
   const dialog = page.getByRole("dialog", {
-    name: "Give it a place.",
+    name: "New budget",
     exact: true,
   });
   await dialog
@@ -82,11 +104,108 @@ const categoryCard = (page: Page, category: string) =>
     }),
   });
 
+test("expense month navigation is shared and large category histories keep bounded DOM", async ({
+  page,
+}) => {
+  test.setTimeout(75_000);
+  const date = localDate();
+  const current = date.slice(0, 7);
+  const earlier = new Date(`${current}-01T12:00:00`);
+  earlier.setMonth(earlier.getMonth() - 1);
+  const previous = localDate(earlier).slice(0, 7);
+  const oldDate = `${previous}-01`;
+  const fixture = applyCommands(createEmptyState(oldDate), [
+    {
+      type: "add-income",
+      amount: 4_000_000,
+      date: oldDate,
+      note: "Fixture earnings",
+    },
+    {
+      type: "set-budget",
+      categoryId: "food",
+      month: previous,
+      amount: 800_000,
+      scope: "month-and-future",
+    },
+    {
+      type: "add-expense",
+      categoryId: "food",
+      amount: 120_000,
+      date: oldDate,
+      note: "Previous month lunch",
+    },
+    { type: "rollover", month: current },
+    ...Array.from({ length: 5000 }, (_, index) => ({
+      type: "add-expense" as const,
+      categoryId: "food",
+      amount: 100,
+      date,
+      note: `Current expense ${index}`,
+    })),
+  ]);
+  await openApp(page);
+  await navigate(page, "My space");
+  await page.getByRole("button", { name: "Restore JSON", exact: true }).click();
+  const restore = page.getByRole("dialog", {
+    name: "Restore backup",
+    exact: true,
+  });
+  await restore
+    .locator('input[type="file"]')
+    .setInputFiles({
+      name: "large-ledger.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(serializeBackup(fixture)),
+    });
+  await restore
+    .getByRole("button", { name: "Restore this backup", exact: true })
+    .click();
+  await expect(restore).toBeHidden();
+  await navigate(page, "Activity");
+  const period = page.getByLabel("Choose expense month", { exact: true });
+  await expect(period).toHaveValue(current);
+  await page
+    .getByRole("button", { name: "Previous month", exact: true })
+    .click();
+  await expect(period).toHaveValue(previous);
+  await expect(
+    page.getByRole("button", { name: /Previous month lunch/ }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Current expense 0/ }),
+  ).toHaveCount(0);
+  await navigate(page, "Insights");
+  await expect(
+    page.getByLabel("Choose report month", { exact: true }),
+  ).toHaveValue(previous);
+  await navigate(page, "My plan");
+  await expect(
+    page.getByLabel("Choose budget month", { exact: true }),
+  ).toHaveValue(previous);
+  await page.getByRole("button", { name: "Next month", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Open Food budget", exact: true })
+    .click();
+  const detail = page.getByRole("dialog", { name: "Food", exact: true });
+  await expect(
+    detail.getByText("Current expense 0", { exact: true }),
+  ).toBeVisible();
+  expect(await detail.locator(".ledger-row").count()).toBeLessThan(25);
+  await detail.locator(".virtual-ledger").evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+  await expect(
+    detail.getByText("Current expense 4999", { exact: true }),
+  ).toBeVisible();
+  expect(await detail.locator(".ledger-row").count()).toBeLessThan(25);
+});
+
 async function openExpense(page: Page, category = "Food") {
   await categoryCard(page, category)
     .getByRole("button", { name: "Add expense", exact: true })
     .click();
-  return page.getByRole("dialog", { name: "A little everyday.", exact: true });
+  return page.getByRole("dialog", { name: "Add expense", exact: true });
 }
 
 async function addExpense(
@@ -198,14 +317,10 @@ test("funded envelopes enforce the cap, reserve only increases, and keep next mo
 }) => {
   await openApp(page);
   await addEarnings(page, "40000", "October salary");
-  await expect(page.locator(".savings-amount-button")).toHaveText(
-    /Rs\s*40,000/,
-  );
+  await expectSavings(page, /Rs\s*40,000/);
   await createBudget(page, "Food", "8000");
   await addExpense(page, "1200", "Lunch with the family");
-  await expect(page.locator(".savings-amount-button")).toHaveText(
-    /Rs\s*32,000/,
-  );
+  await expectSavings(page, /Rs\s*32,000/);
   await expect(categoryCard(page, "Food").locator(".budget-amount")).toHaveText(
     /Rs\s*6,800/,
   );
@@ -228,7 +343,7 @@ test("funded envelopes enforce the cap, reserve only increases, and keep next mo
     .getByRole("button", { name: "Adjust Food budget", exact: true })
     .click();
   const adjustment = page.getByRole("dialog", {
-    name: "A little more room.",
+    name: "Adjust budget",
     exact: true,
   });
   await adjustment
@@ -238,9 +353,7 @@ test("funded envelopes enforce the cap, reserve only increases, and keep next mo
     .getByRole("button", { name: "Save budget", exact: true })
     .click();
   await expect(adjustment).toBeHidden();
-  await expect(page.locator(".savings-amount-button")).toHaveText(
-    /Rs\s*30,000/,
-  );
+  await expectSavings(page, /Rs\s*30,000/);
   await expect(categoryCard(page, "Food").locator(".budget-amount")).toHaveText(
     /Rs\s*8,800/,
   );
@@ -249,11 +362,9 @@ test("funded envelopes enforce the cap, reserve only increases, and keep next mo
     /Rs\s*1,800/,
   );
 
-  await page
-    .getByRole("button", { name: "Preview next month", exact: true })
-    .click();
+  await page.getByRole("button", { name: "Next month", exact: true }).click();
   await expect(
-    page.getByText("Recurring plans are ready for next month.", {
+    page.getByText("Templates · funding starts next month", {
       exact: false,
     }),
   ).toBeVisible();
@@ -268,9 +379,7 @@ test("funded envelopes enforce the cap, reserve only increases, and keep next mo
     after.journal.filter((entry) => entry.budgetId === future.id),
   ).toHaveLength(0);
   await page.reload();
-  await expect(page.locator(".savings-amount-button")).toHaveText(
-    /Rs\s*30,000/,
-  );
+  await expectSavings(page, /Rs\s*30,000/);
 });
 
 test("legacy IndexedDB migration preserves raw records and reconciles historical transfers without double counting", async ({
@@ -360,11 +469,9 @@ test("legacy IndexedDB migration preserves raw records and reconciles historical
   );
   await openApp(page);
   await expect(
-    page.getByText("Your history has a new home.", { exact: true }),
+    page.getByText("History imported · Review report", { exact: true }),
   ).toBeVisible();
-  await expect(page.locator(".savings-amount-button")).toHaveText(
-    /Rs\s*32,000/,
-  );
+  await expectSavings(page, /Rs\s*32,000/);
   await expect(categoryCard(page, "Food").locator(".budget-amount")).toHaveText(
     /Rs\s*5,000/,
   );
@@ -435,7 +542,7 @@ test("complete JSON download and reviewed restore reproduce exact financial reco
   await navigate(page, "My space");
   await page.getByRole("button", { name: "Restore JSON", exact: true }).click();
   const dialog = page.getByRole("dialog", {
-    name: "Restore a little certainty.",
+    name: "Restore backup",
     exact: true,
   });
   await dialog
@@ -445,7 +552,7 @@ test("complete JSON download and reviewed restore reproduce exact financial reco
     .getByRole("button", { name: "Verify and preview", exact: true })
     .click();
   await expect(
-    dialog.getByRole("heading", { name: "Review before restoring." }),
+    dialog.getByRole("heading", { name: "Review backup" }),
   ).toBeVisible();
   await dialog
     .getByRole("button", { name: "Restore this backup", exact: true })
@@ -476,9 +583,7 @@ test("complete JSON download and reviewed restore reproduce exact financial reco
   );
   expect(copies).toContain("Before restoring a backup");
   await navigate(page, "My plan");
-  await expect(page.locator(".savings-amount-button")).toHaveText(
-    /Rs\s*32,000/,
-  );
+  await expectSavings(page, /Rs\s*32,000/);
 });
 
 test("closing and reopening an envelope keeps every expense and restores only its unused funds", async ({
@@ -493,27 +598,23 @@ test("closing and reopening an envelope keeps every expense and restores only it
     .click();
   const detail = page.getByRole("dialog", { name: "Food", exact: true });
   await detail
-    .getByRole("button", { name: "Close this envelope", exact: true })
+    .getByRole("button", { name: "Close budget", exact: true })
     .click();
   await detail
     .getByRole("button", { name: "Confirm close", exact: true })
     .click();
   await expect(detail).toBeHidden();
-  await expect(page.locator(".savings-amount-button")).toHaveText(
-    /Rs\s*38,800/,
-  );
+  await expectSavings(page, /Rs\s*38,800/);
   const closed = await readLedger(page);
   expect(foodAmounts(closed).spent).toBe(120_000);
   expect(foodAmounts(closed).budget.status).toBe("closed");
-  await page
-    .getByText("Closed envelopes · history preserved", { exact: true })
-    .click();
+  await page.getByText("Closed budgets", { exact: true }).click();
   await page
     .locator(".archived-budgets")
     .getByRole("button", { name: /Food/ })
     .click();
   await detail
-    .getByRole("button", { name: "Reopen this envelope", exact: true })
+    .getByRole("button", { name: "Reopen budget", exact: true })
     .click();
   await expect(
     detail.getByText("History that must survive", { exact: true }),
@@ -521,9 +622,7 @@ test("closing and reopening an envelope keeps every expense and restores only it
   await detail
     .getByRole("button", { name: "Close dialog", exact: true })
     .click();
-  await expect(page.locator(".savings-amount-button")).toHaveText(
-    /Rs\s*32,000/,
-  );
+  await expectSavings(page, /Rs\s*32,000/);
   expect(foodAmounts(await readLedger(page)).available).toBe(680_000);
 });
 
@@ -540,16 +639,14 @@ test("night preferences persist, dialogs support Escape, and populated layouts f
   await addExpense(page, "1200", "A very good lunch");
   await addExpense(page, "850", "The way home", "Transport");
   await expect(page.locator(".budget-card")).toHaveCount(3);
-  await expect(page.locator(".savings-amount-button")).toHaveText(
-    /Rs\s*20,000/,
-  );
+  await expectSavings(page, /Rs\s*20,000/);
   const fits = await page.evaluate(
     () => document.documentElement.scrollWidth <= window.innerWidth + 1,
   );
   expect(fits).toBe(true);
   await takePreview(page, testInfo, `morrow-plan-${testInfo.project.name}.png`);
   await page
-    .locator(".savings-card")
+    .locator(".plan-actions")
     .getByRole("button", { name: "Add earnings", exact: true })
     .click();
   await expect(page.getByRole("dialog")).toBeVisible();
@@ -557,13 +654,19 @@ test("night preferences persist, dialogs support Escape, and populated layouts f
   await expect(page.getByRole("dialog")).toBeHidden();
   await expect(page.locator("body")).not.toHaveCSS("overflow", "hidden");
   await page.getByRole("button", { name: "Hide amounts", exact: true }).click();
-  await expect(page.locator(".savings-amount-button")).toHaveText("••••••");
+  await expect(categoryCard(page, "Food").locator(".budget-amount")).toHaveText(
+    "••••••",
+  );
+  await expect(page.locator(".savings-detail")).toHaveCount(0);
   await navigate(page, "My space");
   await page.getByRole("button", { name: "Charcoal", exact: true }).click();
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "charcoal");
   await navigate(page, "My plan");
-  await expect(page.locator(".savings-amount-button")).toHaveText("••••••");
+  await expect(categoryCard(page, "Food").locator(".budget-amount")).toHaveText(
+    "••••••",
+  );
+  await expect(page.locator(".savings-detail")).toHaveCount(0);
   await page.getByRole("button", { name: "Show amounts", exact: true }).click();
   await navigate(page, "Insights");
   await expect(page.locator("main h1")).toBeVisible();
@@ -589,7 +692,7 @@ test("expense corrections and refund reversals preserve audit history and recalc
     .getByRole("button", { name: "Correct record", exact: true })
     .click();
   const correction = page.getByRole("dialog", {
-    name: "A small correction.",
+    name: "Edit transaction",
     exact: true,
   });
   await correction
@@ -616,6 +719,7 @@ test("expense corrections and refund reversals preserve audit history and recalc
     .click();
   await expect(transaction).toBeHidden();
   expect(foodAmounts(await readLedger(page)).available).toBe(680_000);
+  await page.getByRole("button", { name: "Refunds", exact: true }).click();
   await page.getByRole("button", { name: /Refund · Lunch to correct/ }).click();
   const refund = page.getByRole("dialog", {
     name: "Refund · Lunch to correct",
