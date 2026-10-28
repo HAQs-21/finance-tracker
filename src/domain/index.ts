@@ -125,6 +125,24 @@ export function createEmptyState(date = localDate()): FinanceState {
 export function savingsBalance(state: FinanceState): number {
   return projectFinance(state).savings;
 }
+/** Money still owned, including unspent funded envelopes. Funding is a transfer, not spending. */
+export function totalBalance(state: FinanceState): number {
+  const projection = projectFinance(state);
+  return projection.savings + projection.allocated;
+}
+/** Savings movements only. Imported expenses (and their corrections) belong in Expenses. */
+export function savingsTransactions(state: FinanceState): JournalEntry[] {
+  const byId = new Map(state.journal.map((entry) => [entry.id, entry]));
+  return state.journal
+    .filter(
+      (entry) =>
+        entry.savingsDelta !== 0 &&
+        entry.kind !== "expense" &&
+        !(entry.reversesId && byId.get(entry.reversesId)?.kind === "expense"),
+    )
+    .reverse()
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
 export function budgetBalance(state: FinanceState, budgetId: string): number {
   return projectFinance(state).budgets[budgetId]?.available ?? 0;
 }

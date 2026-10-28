@@ -5,11 +5,7 @@ import {
   ArrowUpRight,
   Check,
   ChevronRight,
-  Cloud,
-  Copy,
   Database,
-  FileJson,
-  FolderHeart,
   Moon,
   Palette,
   Plus,
@@ -19,22 +15,17 @@ import {
 } from "lucide-react";
 import { formatMoney, type Category } from "../domain";
 import { type useFinanceStore, type RecoveryCopy } from "../data/store";
-import {
-  downloadFile,
-  exportCsv,
-  exportExcel,
-  exportText,
-} from "../data/exports";
+import { downloadFile } from "../data/exports";
 import type { Notify, Preferences } from "./AppShell";
 import { unlockSavings, type SavingsPrivacyStatus } from "../data/privacy";
 import { categoryColors } from "./colors";
 import { CategoryIcon, Field, InlineError, Sheet, Submit } from "./primitives";
-import { CloudTool, ImportTool, RestoreTool } from "./DataTools";
+import { ImportTool, RestoreTool } from "./DataTools";
 import "./settings.css";
+import { DataCenter } from "./DataCenter";
 
 type Store = ReturnType<typeof useFinanceStore>;
-type Tool =
-  "import" | "restore" | "cloud" | "copies" | "reset" | "category" | null;
+type Tool = "import" | "restore" | "copies" | "reset" | "category" | null;
 const message = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
@@ -398,6 +389,16 @@ function Settings({
     <div className="settings-page">
       <div className="page-heading">
         <h1>Settings</h1>
+        <button
+          className="button secondary"
+          onClick={() =>
+            document
+              .getElementById("data-backups")
+              ?.scrollIntoView({ block: "start" })
+          }
+        >
+          Data & backups
+        </button>
       </div>
       <div className="settings-grid">
         <section className="settings-section settings-card">
@@ -611,114 +612,12 @@ function Settings({
             </button>
           )}
         </section>
-        <section className="settings-section settings-card">
-          <div className="section-heading">
-            <h2>
-              <FolderHeart size={18} /> Import & export
-            </h2>
-          </div>
-          <p className="muted">
-            JSON restores the complete ledger. CSV and text contain active
-            transactions; Excel includes the journal and reports.
-          </p>
-          <div className="export-grid">
-            <button
-              className="button secondary"
-              disabled={!!busy}
-              onClick={() =>
-                void run("Recovery file", () =>
-                  downloadFile("Morrow-recovery.json", store.getBackup()),
-                )
-              }
-            >
-              <FileJson size={18} /> Complete JSON
-            </button>
-            <button
-              className="button secondary"
-              disabled={!!busy}
-              onClick={() =>
-                void run("CSV export", () =>
-                  downloadFile(
-                    "Morrow-transactions.csv",
-                    exportCsv(state),
-                    "text/csv;charset=utf-8",
-                  ),
-                )
-              }
-            >
-              <ArrowDownToLine size={18} /> CSV
-            </button>
-            <button
-              className="button secondary"
-              disabled={!!busy}
-              onClick={() =>
-                void run("Text export", () =>
-                  downloadFile(
-                    "Morrow-notes.txt",
-                    exportText(state),
-                    "text/plain;charset=utf-8",
-                  ),
-                )
-              }
-            >
-              <ArrowDownToLine size={18} /> Text notes
-            </button>
-            <button
-              className="button secondary"
-              disabled={!!busy}
-              onClick={() =>
-                void run("Excel workbook", () => exportExcel(state))
-              }
-            >
-              <ArrowDownToLine size={18} /> Excel + formulas
-            </button>
-            <button
-              className="button secondary"
-              disabled={!!busy}
-              onClick={() =>
-                void run("Clipboard copy", () =>
-                  navigator.clipboard.writeText(exportText(state)),
-                )
-              }
-            >
-              <Copy size={18} /> Copy notes
-            </button>
-          </div>
-          {busy && (
-            <p className="period-note" role="status">
-              Preparing {busy.toLowerCase()}…
-            </p>
-          )}
-          <div className="action-pair">
-            <button className="button subtle" onClick={() => setTool("import")}>
-              Import notes / CSV <ArrowUpRight size={16} />
-            </button>
-            <button
-              className="button subtle"
-              onClick={() => setTool("restore")}
-            >
-              Restore JSON <ArrowUpRight size={16} />
-            </button>
-          </div>
-        </section>
-        <section className="settings-section settings-card">
-          <div className="section-heading">
-            <h2>
-              <Cloud size={18} /> GitHub backup
-            </h2>
-            <ShieldCheck size={18} />
-          </div>
-          <p className="muted">
-            Keep an external copy. Review remote changes before restoring.
-          </p>
-          <button className="button secondary" onClick={() => setTool("cloud")}>
-            Manage GitHub backup <ArrowUpRight size={17} />
-          </button>
-          <p className="period-note">
-            Transfer between devices using JSON or GitHub. Automatic sync is not
-            enabled.
-          </p>
-        </section>
+        <DataCenter
+          store={store}
+          notify={notify}
+          onImport={() => setTool("import")}
+          onRestore={() => setTool("restore")}
+        />
         <section className="settings-section settings-card">
           <div className="section-heading">
             <h2>
@@ -837,13 +736,6 @@ function Settings({
         )}
         {tool === "restore" && (
           <RestoreTool
-            store={store}
-            notify={notify}
-            onClose={() => setTool(null)}
-          />
-        )}
-        {tool === "cloud" && (
-          <CloudTool
             store={store}
             notify={notify}
             onClose={() => setTool(null)}

@@ -12,7 +12,52 @@ import {
   downloadBackup,
   uploadBackup,
   BackupRemoteError,
+  parseGithubRepository,
+  checkGithubConnection,
 } from "../src/data/github.ts";
+
+test("GitHub setup accepts repository URLs and diagnoses invalid credentials without retrying", async () => {
+  assert.deepEqual(
+    parseGithubRepository(" https://github.com/owner/vault.git "),
+    { owner: "owner", repo: "vault" },
+  );
+  assert.throws(
+    () => parseGithubRepository("https://evil.example/owner/vault"),
+    /owner\/repository/,
+  );
+  const original = globalThis.fetch;
+  const config = {
+    owner: "owner",
+    repo: "vault",
+    path: "morrow/current.json",
+    token: "synthetic",
+  };
+  try {
+    let calls = 0;
+    globalThis.fetch = async () => {
+      calls++;
+      return Response.json({ message: "Bad credentials" }, { status: 401 });
+    };
+    await assert.rejects(
+      checkGithubConnection(config),
+      /expired or been revoked/,
+    );
+    assert.equal(calls, 1);
+    globalThis.fetch = async () =>
+      Response.json({ message: "denied" }, { status: 403 });
+    await assert.rejects(
+      checkGithubConnection(config),
+      /Contents: read and write/,
+    );
+    globalThis.fetch = async (input) =>
+      String(input).endsWith("/contents")
+        ? Response.json({}, { status: 409 })
+        : Response.json({ id: 1 });
+    await checkGithubConnection(config);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
 import { FinanceRepository, previewBackup } from "../src/data/store.ts";
 import {
   savingsBalance,
@@ -171,15 +216,13 @@ test("legacy source remains intact; concurrent budget spending is atomic; corrup
     .version(1)
     .stores({ transactions: "++id", budgets: "category", savings: "++id" });
   await old.open();
-  await old
-    .table("transactions")
-    .add({
-      amount: 40_000,
-      type: "INCOME",
-      date: localDate(),
-      category: "Income",
-      description: "Original salary",
-    });
+  await old.table("transactions").add({
+    amount: 40_000,
+    type: "INCOME",
+    date: localDate(),
+    category: "Income",
+    description: "Original salary",
+  });
   const repository = new FinanceRepository();
   const initial = await repository.open();
   assert.equal(initial.legacy?.raw.transactions.length, 1);
@@ -240,13 +283,11 @@ test("legacy source remains intact; concurrent budget spending is atomic; corrup
   const damaged = new Dexie("MorrowFinance");
   await damaged.open();
   const metadata = await damaged.table("metadata").get("state");
-  await damaged
-    .table("metadata")
-    .put({
-      ...metadata,
-      currency: "BROKEN",
-      revision: metadata.revision + 100,
-    });
+  await damaged.table("metadata").put({
+    ...metadata,
+    currency: "BROKEN",
+    revision: metadata.revision + 100,
+  });
   const recoveryRepository = new FinanceRepository();
   await assert.rejects(recoveryRepository.open(), /left untouched/);
   await recoveryRepository.restore(verifiedBackup);

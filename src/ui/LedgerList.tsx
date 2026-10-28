@@ -66,9 +66,9 @@ function LedgerList({
             <span className="ledger-copy">
               <strong>
                 {savings && entry.kind === "allocation"
-                  ? `${names.get(entry.categoryId || "") || "Category"} · budget`
+                  ? `Withdrawal to ${names.get(entry.categoryId || "") || "budget"}`
                   : savings && entry.kind === "release"
-                    ? `${names.get(entry.categoryId || "") || "Category"} · returned`
+                    ? `Returned from ${names.get(entry.categoryId || "") || "budget"}`
                     : entry.note || entry.kind}
               </strong>
               <small>{dateLabel(entry.date)}</small>

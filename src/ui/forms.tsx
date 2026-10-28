@@ -23,6 +23,8 @@ import {
   isReversed,
   localDate,
   savingsBalance,
+  savingsTransactions,
+  totalBalance,
   templateForMonth,
   toMinor,
   type FinanceState,
@@ -864,25 +866,36 @@ export function SavingsSheet({
   onClose: () => void;
   onIncome: () => void;
 }) {
-  const entries = state.journal
-    .filter((e) => e.savingsDelta !== 0)
-    .slice()
-    .reverse();
+  const entries = useMemo(() => savingsTransactions(state), [state]);
   return (
     <Sheet title="Savings" onClose={onClose}>
       <div className="savings-detail">
-        <span className="eyebrow">SAVINGS AVAILABLE</span>
-        <Money
-          value={savingsBalance(state)}
-          hidden={hidden}
-          className="detail-amount"
-        />
+        <section className="savings-balances" aria-label="Your money">
+          <div>
+            <span>Balance</span>
+            <Money
+              value={totalBalance(state)}
+              hidden={hidden}
+              className="balance-amount"
+            />
+            <small>Including unspent budgets</small>
+          </div>
+          <div>
+            <span>Savings</span>
+            <Money
+              value={savingsBalance(state)}
+              hidden={hidden}
+              className="detail-amount"
+            />
+            <small>Available outside budgets</small>
+          </div>
+        </section>
         <button className="button primary" onClick={onIncome}>
           <Plus size={16} /> Add earnings
         </button>
         <div className="subsection-title">
           <Clock3 size={15} />
-          <span>History</span>
+          <span>Savings transactions</span>
         </div>
         <Suspense
           fallback={

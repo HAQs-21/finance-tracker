@@ -134,6 +134,34 @@ public class NativeLedgerTest {
         }
     }
 
+    @Test(timeout = 90000)
+    public void backupTokenIsEncryptedAndSurvivesActivityRecreation() throws Exception {
+        assumeTrue("Disposable Android emulator required", Build.HARDWARE.contains("ranchu") || Build.HARDWARE.contains("goldfish"));
+        scenario = ActivityScenario.launch(MainActivity.class);
+        try {
+            waitFor("document.querySelector('.plan-page')");
+            run("window.__credentialCheck=null;window.Capacitor.nativePromise('BackupCredentials','save',{token:'synthetic-native-token'}).then(()=>window.__credentialCheck=true).catch(()=>window.__credentialCheck=false)");
+            waitFor("window.__credentialCheck===true");
+            String cipher = context.getSharedPreferences("morrow.backup.credentials", 0).getString("token", "");
+            assertFalse(cipher.isEmpty()); assertFalse(cipher.contains("synthetic-native-token"));
+            scenario.recreate(); waitFor("document.querySelector('.plan-page')");
+            run("window.__credentialCheck=null;window.Capacitor.nativePromise('BackupCredentials','load',{}).then(value=>window.__credentialCheck=value.token==='synthetic-native-token').catch(()=>window.__credentialCheck=false)");
+            waitFor("window.__credentialCheck===true");
+            run("window.__credentialCheck=null;window.Capacitor.nativePromise('BackupCredentials','clear',{}).then(()=>window.Capacitor.nativePromise('BackupCredentials','load',{})).then(value=>window.__credentialCheck=value.token==='')");
+            waitFor("window.__credentialCheck===true");
+            if ("true".equals(InstrumentationRegistry.getArguments().getString("checkNetwork"))) {
+                run("window.__httpCheck=null;window.Capacitor.nativePromise('CapacitorHttp','request',{url:'https://api.github.com/repos/HAQs-21/finance-tracker',method:'GET',headers:{Accept:'application/vnd.github+json'},responseType:'json',connectTimeout:15000,readTimeout:20000}).then(value=>window.__httpCheck=value.status).catch(()=>window.__httpCheck=-1)");
+                waitFor("window.__httpCheck!==null");
+                assertEquals("Native GitHub transport", "200", evaluate("window.__httpCheck"));
+            }
+            run("window.__copyCheck=null;window.Capacitor.nativePromise('MorrowClipboard','write',{text:'synthetic-export-note'}).then(()=>window.__copyCheck=true).catch(()=>window.__copyCheck=false)");
+            waitFor("window.__copyCheck===true");
+            android.content.ClipboardManager clipboard = (android.content.ClipboardManager) context.getSystemService(Context.CLIPBOARD_SERVICE);
+            assertEquals("synthetic-export-note", clipboard.getPrimaryClip().getItemAt(0).getText().toString());
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("", ""));
+        } finally { scenario.close(); context.getSharedPreferences("morrow.backup.credentials", 0).edit().clear().commit(); }
+    }
+
     @Test(timeout = 120000)
     public void savingsRequiresDeviceCredentialAndClosesInBackground() throws Exception {
         assumeTrue("Disposable Android emulator required", Build.HARDWARE.contains("ranchu") || Build.HARDWARE.contains("goldfish"));

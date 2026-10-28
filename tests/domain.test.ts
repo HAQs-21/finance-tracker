@@ -14,6 +14,8 @@ import {
   parseBackup,
   projectFinance,
   savingsBalance,
+  totalBalance,
+  savingsTransactions,
   serializeBackup,
   templateForMonth,
   toMinor,
@@ -54,6 +56,65 @@ const expense = (state: FinanceState, amount = 120_000) =>
   });
 const error = (code: string) => (value: unknown) =>
   value instanceof FinanceError && value.code === code;
+
+test("Balance includes unused envelopes; Savings does not; transfers never count as spending twice", () => {
+  const funded = planned();
+  assert.equal(totalBalance(funded), 4_000_000);
+  const spent = expense(funded);
+  assert.equal(totalBalance(spent), 3_880_000);
+  assert.equal(savingsBalance(spent), 3_200_000);
+  const closed = run(spent, {
+    type: "archive-budget",
+    budgetId: food(spent).id,
+  });
+  assert.equal(totalBalance(closed), 3_880_000);
+  assert.equal(savingsBalance(closed), 3_880_000);
+  assert.equal(totalBalance(parseBackup(serializeBackup(closed))), 3_880_000);
+});
+
+test("Savings history excludes imported historical expenses and their reversals, retaining earnings and transfers", () => {
+  const migrated = migrateLegacy(
+    {
+      transactions: [
+        {
+          id: 1,
+          type: "INCOME",
+          amount: 40000,
+          date: "2026-09-01",
+          description: "Payout",
+          category: "Income",
+        },
+        {
+          id: 2,
+          type: "EXPENSE",
+          amount: 1200,
+          date: "2026-09-02",
+          description: "Historical lunch",
+          category: "Food",
+        },
+      ],
+      budgets: [],
+      savings: [],
+    },
+    "2026-10-17",
+  );
+  const state = migrated.state;
+  assert.equal(totalBalance(state), 3_880_000);
+  assert.ok(
+    savingsTransactions(state).every((entry) => entry.kind !== "expense"),
+  );
+  const historical = state.journal.find((entry) => entry.kind === "expense")!;
+  const reversed = run(state, {
+    type: "reverse-entry",
+    entryId: historical.id,
+  });
+  assert.ok(
+    !savingsTransactions(reversed).some(
+      (entry) => entry.reversesId === historical.id,
+    ),
+  );
+  assert.equal(totalBalance(reversed), 4_000_000);
+});
 
 test("earnings go to Savings; category creation reserves money once; spending uses only category funds", () => {
   const state = expense(planned());

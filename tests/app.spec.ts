@@ -293,7 +293,7 @@ test("speed preference persists and overlapping Savings sheets release page scro
   await page.getByRole("button", { name: "Open Savings", exact: true }).click();
   const savings = page.getByRole("dialog", { name: "Savings", exact: true });
   await expect(
-    savings.getByText("Food · budget", { exact: true }),
+    savings.getByText("Withdrawal to Food", { exact: true }),
   ).toBeVisible();
   await expect(savings.getByText("Payout", { exact: true })).toBeVisible();
   await expect(savings.locator(".ledger-month")).toHaveCount(1);
@@ -322,6 +322,188 @@ test("speed preference persists and overlapping Savings sheets release page scro
 function netSavings(state: FinanceState) {
   return state.journal.reduce((sum, entry) => sum + entry.savingsDelta, 0);
 }
+
+test("Balance and Savings stay private and Savings history excludes expense notes", async ({
+  page,
+}) => {
+  await openApp(page);
+  await addEarnings(page, "40000", "Payout");
+  await createBudget(page, "Food", "8000");
+  await addExpense(page, "1200", "Private expense note");
+  await expect(page.locator(".balance-amount")).toHaveCount(0);
+  await page.getByRole("button", { name: "Open Savings", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Savings", exact: true });
+  await expect(dialog.locator(".balance-amount")).toHaveText(/Rs\s*38,800/);
+  await expect(dialog.locator(".detail-amount")).toHaveText(/Rs\s*32,000/);
+  await expect(dialog.getByText("Payout", { exact: true })).toBeVisible();
+  await expect(
+    dialog.getByText("Private expense note", { exact: true }),
+  ).toHaveCount(0);
+});
+
+test("data tools export every format and import editable CSV cards without changing unrelated records", async ({
+  page,
+}, testInfo) => {
+  await openApp(page);
+  await addEarnings(page, "40000");
+  await createBudget(page, "Food", "8000");
+  await navigate(page, "My space");
+  const tools = page.getByRole("region", {
+    name: "Import and export",
+    exact: true,
+  });
+  await tools.getByRole("tab", { name: "Export", exact: true }).click();
+  for (const format of ["CSV", "Excel + formulas", "Text notes"]) {
+    await tools
+      .getByRole("radio", { name: new RegExp(format.replace("+", "\\+")) })
+      .check();
+    const pending = page.waitForEvent("download");
+    await tools
+      .getByRole("button", { name: "Export file", exact: true })
+      .click();
+    const file = await pending;
+    expect(file.suggestedFilename()).toMatch(/\.(csv|xlsx|txt)$/);
+  }
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  await tools.getByRole("button", { name: "Copy notes", exact: true }).click();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(
+    "income",
+  );
+  await tools.getByRole("tab", { name: "Import", exact: true }).click();
+  await tools
+    .getByRole("button", { name: "Import notes / CSV", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog", {
+    name: "Import records",
+    exact: true,
+  });
+  const date = localDate();
+  await dialog.locator("input[type=file]").setInputFiles({
+    name: "records.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      `Date,Type,Amount,Category,Note\n${date},expense,200,Food,Imported lunch\n${date},expense,100,Food,Remove me`,
+    ),
+  });
+  await dialog
+    .getByRole("button", { name: "Preview entries", exact: true })
+    .click();
+  await dialog.getByLabel("Amount, source line 2", { exact: true }).fill("250");
+  await dialog
+    .getByRole("button", {
+      name: "Remove source line 3 from preview",
+      exact: true,
+    })
+    .click();
+  const sourceDownload = page.waitForEvent("download");
+  await dialog
+    .getByRole("button", { name: "Save original source", exact: true })
+    .click();
+  await sourceDownload;
+  await dialog.getByRole("checkbox").check();
+  await dialog
+    .getByRole("button", { name: "Import 1 entries", exact: true })
+    .click();
+  await expect(dialog).toBeHidden();
+  const state = await readLedger(page);
+  expect(foodAmounts(state).spent).toBe(25000);
+  expect(netSavings(state)).toBe(3200000);
+  await takePreview(page, testInfo, `data-tools-${testInfo.project.name}.png`);
+});
+
+test("GitHub connection saves a token for the session, creates a verified backup, and stops conflicting writes", async ({
+  page,
+}) => {
+  let uploaded = "",
+    uploadedBranch = "",
+    writes = 0,
+    conflict = false;
+  await page.route("https://api.github.com/**", async (route) => {
+    const req = route.request(),
+      url = new URL(req.url());
+    if (req.headers()["authorization"] !== "Bearer synthetic-token")
+      return route.fulfill({
+        status: 401,
+        json: { message: "Bad credentials" },
+      });
+    if (req.method() === "PUT") {
+      uploadedBranch = req.postDataJSON().branch || "";
+      writes++;
+      if (conflict)
+        return route.fulfill({ status: 409, json: { message: "changed" } });
+      uploaded = Buffer.from(req.postDataJSON().content, "base64").toString(
+        "utf8",
+      );
+      return route.fulfill({ json: { content: { sha: "verified-sha" } } });
+    }
+    if (url.pathname.endsWith("/contents/morrow/current.json"))
+      return uploaded
+        ? route.fulfill({
+            json: {
+              type: "file",
+              sha: "verified-sha",
+              encoding: "base64",
+              content: Buffer.from(uploaded).toString("base64"),
+            },
+          })
+        : route.fulfill({ status: 404, json: { message: "Not found" } });
+    return route.fulfill({
+      json: url.pathname.endsWith("/contents") ? [] : { id: 1 },
+    });
+  });
+  await openApp(page);
+  await addEarnings(page, "40000");
+  await navigate(page, "My space");
+  const tools = page.getByRole("region", {
+    name: "Import and export",
+    exact: true,
+  });
+  await tools.getByRole("tab", { name: "GitHub", exact: true }).click();
+  await tools
+    .getByRole("textbox", { name: "GitHub repository", exact: true })
+    .fill("https://github.com/owner/vault.git");
+  await tools
+    .getByLabel("GitHub access token", { exact: true })
+    .fill("synthetic-token");
+  await tools
+    .locator("summary")
+    .filter({ hasText: "Token permissions" })
+    .click();
+  await tools.getByLabel("Backup branch", { exact: true }).fill("archive");
+  await tools
+    .getByRole("button", { name: "Save connection", exact: true })
+    .click();
+  await expect(
+    tools.getByText("No backup at this path yet.", { exact: true }),
+  ).toBeVisible();
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain(
+    "synthetic-token",
+  );
+  await tools.getByRole("button", { name: "Back up now", exact: true }).click();
+  await tools
+    .getByRole("button", { name: "Confirm backup", exact: true })
+    .click();
+  await expect(
+    tools.getByRole("button", { name: "Review restore", exact: true }),
+  ).toBeVisible();
+  expect(JSON.parse(uploaded).format).toBe("morrow-backup");
+  expect(uploadedBranch).toBe("archive");
+  conflict = true;
+  const before = records(await readLedger(page));
+  await tools.getByRole("button", { name: "Back up now", exact: true }).click();
+  await tools
+    .getByRole("button", { name: "Confirm backup", exact: true })
+    .click();
+  await expect(tools.getByRole("alert")).toContainText("remote backup changed");
+  expect(writes).toBe(2);
+  expect(records(await readLedger(page))).toEqual(before);
+  await tools.getByRole("button", { name: "Cancel", exact: true }).click();
+  await tools.getByRole("tab", { name: "Backup", exact: true }).click();
+  await tools.getByRole("tab", { name: "GitHub", exact: true }).click();
+  await expect(
+    tools.getByLabel("GitHub access token", { exact: true }),
+  ).toHaveValue("synthetic-token");
+});
 function foodAmounts(state: FinanceState, month = state.activeMonth) {
   const category = state.categories.find(
     (item) => item.name.toLowerCase() === "food",

@@ -3,6 +3,7 @@ export interface GithubConfig {
   repo: string;
   path: string;
   token: string;
+  branch?: string;
 }
 
 export class BackupRemoteError extends Error {
@@ -16,6 +17,25 @@ export class BackupRemoteError extends Error {
 
 const CONFIG_KEY = "morrow.github.destination.v1";
 let sessionToken = "";
+
+export function parseGithubRepository(value: string): {
+  owner: string;
+  repo: string;
+} {
+  const clean = value
+    .trim()
+    .replace(/^https:\/\/(?:www\.)?github\.com\//i, "")
+    .replace(/\/$/, "")
+    .replace(/\.git$/, "");
+  const parts = clean.split("/");
+  if (
+    parts.length !== 2 ||
+    !parts.every((part) => /^[\w.-]+$/.test(part)) ||
+    parts.some((part) => part === "." || part === "..")
+  )
+    throw new Error("Enter owner/repository or its github.com URL.");
+  return { owner: parts[0], repo: parts[1] };
+}
 
 /** Only destination settings are persisted. Access tokens stay in memory. */
 export function getGithubConfig(): GithubConfig | null {
@@ -31,7 +51,13 @@ export function getGithubConfig(): GithubConfig | null {
       typeof v.path !== "string"
     )
       return null;
-    return { owner: v.owner, repo: v.repo, path: v.path, token: sessionToken };
+    return {
+      owner: v.owner,
+      repo: v.repo,
+      path: v.path,
+      token: sessionToken,
+      branch: typeof v.branch === "string" ? v.branch : "",
+    };
   } catch {
     return null;
   }
@@ -45,6 +71,7 @@ export function saveGithubConfig(config: GithubConfig): void {
       owner: config.owner.trim(),
       repo: config.repo.trim(),
       path: config.path.trim(),
+      branch: config.branch?.trim() || "",
     }),
   );
   sessionToken = config.token.trim();
@@ -56,6 +83,15 @@ export function clearGithubConfig(): void {
 }
 
 function validateConfig(config: GithubConfig): void {
+  if (
+    config.branch &&
+    (/\s|\.\.|[~^:?*\\[\]]/.test(config.branch) ||
+      config.branch.startsWith("/") ||
+      config.branch.endsWith("/"))
+  )
+    throw new Error(
+      "Enter a valid branch name, or leave it empty for the repository default.",
+    );
   if (
     !/^[\w.-]+$/.test(config.owner.trim()) ||
     !/^[\w.-]+$/.test(config.repo.trim())
@@ -107,6 +143,21 @@ function decode(base64: string): string {
 }
 
 async function remoteError(response: Response): Promise<BackupRemoteError> {
+  if (response.status === 401)
+    return new BackupRemoteError(
+      "GitHub rejected this token. Check that it is complete and has not expired or been revoked.",
+      401,
+    );
+  if (response.status === 403)
+    return new BackupRemoteError(
+      "GitHub denied access. Give this token access to the selected repository with Contents: read and write. Organization tokens may also need approval or SSO authorization. GitHub rate limits can also temporarily block requests.",
+      403,
+    );
+  if (response.status === 429)
+    return new BackupRemoteError(
+      "GitHub is rate limiting requests. Wait before trying again; your local data is unchanged.",
+      429,
+    );
   if (response.status === 404)
     return new BackupRemoteError(
       "Backup file was not found, or this token cannot access it. Your local data is unchanged.",
@@ -127,15 +178,88 @@ async function remoteError(response: Response): Promise<BackupRemoteError> {
   );
 }
 
+/** Native transport avoids WebView CORS/network quirks; browser uses normal fetch. */
+async function request(url: string, options: RequestInit): Promise<Response> {
+  const { Capacitor, CapacitorHttp } = await import("@capacitor/core");
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const response = await CapacitorHttp.request({
+        url,
+        method: options.method || "GET",
+        headers: options.headers as Record<string, string>,
+        ...(options.body ? { data: JSON.parse(String(options.body)) } : {}),
+        responseType: "json",
+        connectTimeout: 15000,
+        readTimeout: 20000,
+      });
+      return new Response(JSON.stringify(response.data), {
+        status: response.status,
+        headers: response.headers,
+      });
+    } catch {
+      throw new Error(
+        "Could not reach GitHub. Check your connection. Inspect the remote backup before retrying an upload.",
+      );
+    }
+  }
+  const timeout = AbortSignal.timeout(20000);
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: options.signal
+        ? AbortSignal.any([timeout, options.signal])
+        : timeout,
+    });
+  } catch {
+    throw new Error(
+      "Could not reach GitHub or the request timed out. Check your connection and inspect the remote copy before retrying an upload.",
+    );
+  }
+}
+
+export async function checkGithubConnection(
+  config: GithubConfig,
+): Promise<void> {
+  validateConfig(config);
+  const base = `https://api.github.com/repos/${encodeURIComponent(config.owner.trim())}/${encodeURIComponent(config.repo.trim())}`;
+  const repo = await request(base, {
+    headers: headers(config),
+    cache: "no-store",
+  });
+  if (repo.status === 404)
+    throw new BackupRemoteError(
+      "Repository not found or unavailable to this token. Check owner/repository, the token's repository access, and organization approval.",
+      404,
+    );
+  if (!repo.ok) throw await remoteError(repo);
+  const contents = await request(
+    `${base}/contents${config.branch?.trim() ? `?ref=${encodeURIComponent(config.branch.trim())}` : ""}`,
+    {
+      headers: headers(config),
+      cache: "no-store",
+    },
+  );
+  if (contents.status === 404)
+    throw new BackupRemoteError(
+      "Cannot read repository contents. Check the backup branch and the token's Contents permission.",
+      404,
+    );
+  if (!contents.ok && contents.status !== 409)
+    throw await remoteError(contents);
+}
+
 export async function downloadBackup(
   config: GithubConfig,
   signal?: AbortSignal,
 ): Promise<{ backup: string; sha: string }> {
-  const response = await fetch(`${endpoint(config)}?ref=HEAD&t=${Date.now()}`, {
-    headers: headers(config),
-    cache: "no-store",
-    signal,
-  });
+  const response = await request(
+    `${endpoint(config)}?${config.branch?.trim() ? `ref=${encodeURIComponent(config.branch.trim())}&` : ""}t=${Date.now()}`,
+    {
+      headers: headers(config),
+      cache: "no-store",
+      signal,
+    },
+  );
   if (!response.ok) throw await remoteError(response);
   const body = (await response.json()) as {
     content?: string;
@@ -157,7 +281,7 @@ export async function downloadBackup(
   // The Contents API omits inline content for larger files. Fetch the immutable
   // blob revision so a concurrent remote edit cannot change this download.
   const blobUrl = `https://api.github.com/repos/${encodeURIComponent(config.owner.trim())}/${encodeURIComponent(config.repo.trim())}/git/blobs/${encodeURIComponent(body.sha)}`;
-  const blobResponse = await fetch(blobUrl, {
+  const blobResponse = await request(blobUrl, {
     headers: headers(config),
     cache: "no-store",
     signal,
@@ -185,7 +309,7 @@ export async function uploadBackup(
   signal?: AbortSignal,
 ): Promise<string> {
   if (!backup.trim()) throw new Error("An empty backup cannot be uploaded.");
-  const response = await fetch(endpoint(config), {
+  const response = await request(endpoint(config), {
     method: "PUT",
     headers: headers(config),
     signal,
@@ -193,6 +317,7 @@ export async function uploadBackup(
       message: `Morrow verified backup ${new Date().toISOString()}`,
       content: encode(backup),
       ...(expectedSha ? { sha: expectedSha } : {}),
+      ...(config.branch?.trim() ? { branch: config.branch.trim() } : {}),
     }),
   });
   if (!response.ok) throw await remoteError(response);

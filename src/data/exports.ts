@@ -44,6 +44,16 @@ export function exportText(state: FinanceState): string {
     .join("\n");
 }
 
+export async function copyNotes(state: FinanceState): Promise<void> {
+  const text = exportText(state);
+  const { Capacitor, registerPlugin } = await import("@capacitor/core");
+  if (Capacitor.isNativePlatform())
+    await registerPlugin<{ write(options: { text: string }): Promise<void> }>(
+      "MorrowClipboard",
+    ).write({ text });
+  else await navigator.clipboard.writeText(text);
+}
+
 /** Android uses its native share sheet; browser uses a standard file download. */
 export async function downloadFile(
   filename: string,

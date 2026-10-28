@@ -3,10 +3,10 @@ import {
   ArrowDownToLine,
   ArrowUpRight,
   Check,
-  Cloud,
   FileJson,
   Trash2,
 } from "lucide-react";
+import { downloadFile } from "../data/exports";
 import { formatMoney, projectFinance } from "../domain";
 import {
   parseImportText,
@@ -15,15 +15,6 @@ import {
   type ImportRow,
 } from "../data/imports";
 import { previewBackup, type useFinanceStore } from "../data/store";
-import { downloadFile } from "../data/exports";
-import {
-  downloadBackup,
-  uploadBackup,
-  getGithubConfig,
-  saveGithubConfig,
-  clearGithubConfig,
-  type GithubConfig,
-} from "../data/github";
 import type { Notify } from "./AppShell";
 import { Field, InlineError, Sheet } from "./primitives";
 
@@ -86,6 +77,7 @@ export function ImportTool({
   onClose: () => void;
 }) {
   const [text, setText] = useState("");
+  const [fileName, setFileName] = useState("");
   const [preview, setPreview] = useState<ImportPreview | null>(null);
   const [rows, setRows] = useState<DraftRow[]>([]);
   const [page, setPage] = useState(0);
@@ -142,37 +134,57 @@ export function ImportTool({
     >
       {!preview ? (
         <>
-          <Field label="Notes or CSV">
-            <textarea
-              rows={10}
-              value={text}
-              onChange={(event) => setText(event.target.value)}
-              placeholder={
-                "October 2026 (40k)\n1,200 Dinner [Food]\n2026-10-17 expense 250 Coffee [Food]"
-              }
-            />
-          </Field>
-          <label className="button secondary">
-            Open a text or CSV file
-            <input
-              className="visually-hidden"
-              type="file"
-              accept=".txt,.csv,text/plain,text/csv"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file)
-                  void file
-                    .text()
-                    .then(setText)
-                    .catch((caught) => setError(message(caught)));
+          <div className="import-source-actions">
+            <label className="button secondary">
+              Open a text or CSV file
+              <input
+                className="visually-hidden"
+                type="file"
+                accept=".txt,.csv,text/plain,text/csv"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file)
+                    void file
+                      .text()
+                      .then((source) => {
+                        setFileName(file.name);
+                        setText(source);
+                        setError("");
+                      })
+                      .catch((caught) => setError(message(caught)));
+                }}
+              />
+            </label>
+            {fileName && <span className="data-help">{fileName}</span>}
+          </div>
+          {fileName ? (
+            <button
+              className="quiet-button"
+              onClick={() => {
+                setFileName("");
+                setText("");
               }}
-            />
-          </label>
-          <p className="period-note">
-            CSV columns: Date, Type, Amount, Category, Note. Amounts use rupees.
-            Dates use YYYY-MM-DD. Notes without a date receive the 15th of their
-            stated month. New expenses require a funded category budget.
-          </p>
+            >
+              Paste instead
+            </button>
+          ) : (
+            <Field label="Notes or CSV">
+              <textarea
+                rows={5}
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+                placeholder="2026-10-17 expense 250 Coffee [Food]"
+              />
+            </Field>
+          )}
+          <details className="data-details">
+            <summary>Formats & import rules</summary>
+            <p>
+              CSV: Date, Type, Amount, Category, Note. Amounts are rupees; dates
+              use YYYY-MM-DD. Undated notes use the 15th of their stated month.
+              Expenses need funded budgets.
+            </p>
+          </details>
           <InlineError error={error} />
           <button
             className="button primary"
@@ -190,76 +202,83 @@ export function ImportTool({
               Edit source
             </button>
           </div>
-          <p className="muted">
-            Every field is editable. Removing a preview row leaves its source
-            text untouched.
-          </p>
-          <div className="import-table">
-            <table>
-              <thead>
-                <tr>
-                  <th>Type</th>
-                  <th>Date</th>
-                  <th>Amount (Rs)</th>
-                  <th>Category</th>
-                  <th>Note</th>
-                  <th>
-                    <span className="visually-hidden">Remove</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.slice(page * 20, (page + 1) * 20).map((row) => (
-                  <tr key={row.id}>
-                    <td>
-                      <select
-                        aria-label={`Type, source line ${row.sourceLine}`}
-                        value={row.type}
-                        onChange={(event) =>
-                          update(row.id, {
-                            type: event.target.value as ImportRow["type"],
-                          })
-                        }
-                      >
-                        <option value="expense">Expense</option>
-                        <option value="income">Earnings</option>
-                        <option value="transfer">Legacy transfer</option>
-                      </select>
-                    </td>
-                    <td>
-                      <input
-                        aria-label={`Date, source line ${row.sourceLine}`}
-                        type="date"
-                        value={row.date}
-                        onChange={(event) =>
-                          update(row.id, {
-                            date: event.target.value,
-                            inferredDate: false,
-                          })
-                        }
-                      />
-                      {row.inferredDate && <small>Inferred</small>}
-                    </td>
-                    <td>
-                      <input
-                        aria-label={`Amount, source line ${row.sourceLine}`}
-                        inputMode="decimal"
-                        value={row.amountText}
-                        onChange={(event) =>
-                          update(row.id, { amountText: event.target.value })
-                        }
-                      />
-                    </td>
-                    <td>
-                      <input
-                        aria-label={`Category, source line ${row.sourceLine}`}
-                        value={row.category}
-                        onChange={(event) =>
-                          update(row.id, { category: event.target.value })
-                        }
-                      />
-                    </td>
-                    <td>
+          <p className="muted">Review before adding to this ledger.</p>
+          <div className="import-review">
+            {rows.slice(page * 10, (page + 1) * 10).map((row) => (
+              <article className="import-row" key={row.id}>
+                <div className="import-row-heading">
+                  <span>
+                    Source line {row.sourceLine}
+                    {row.inferredDate ? " · inferred date" : ""}
+                  </span>
+                  <button
+                    className="icon-button"
+                    aria-label={`Remove source line ${row.sourceLine} from preview`}
+                    onClick={() => {
+                      setRows((current) =>
+                        current.filter((item) => item.id !== row.id),
+                      );
+                      setPage((current) =>
+                        Math.min(
+                          current,
+                          Math.max(0, Math.ceil((rows.length - 1) / 10) - 1),
+                        ),
+                      );
+                    }}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                <div className="import-row-fields">
+                  <Field label="Type">
+                    <select
+                      aria-label={`Type, source line ${row.sourceLine}`}
+                      value={row.type}
+                      onChange={(event) =>
+                        update(row.id, {
+                          type: event.target.value as ImportRow["type"],
+                        })
+                      }
+                    >
+                      <option value="expense">Expense</option>
+                      <option value="income">Earnings</option>
+                      <option value="transfer">Legacy transfer</option>
+                    </select>
+                  </Field>
+                  <Field label="Date">
+                    <input
+                      aria-label={`Date, source line ${row.sourceLine}`}
+                      type="date"
+                      value={row.date}
+                      onChange={(event) =>
+                        update(row.id, {
+                          date: event.target.value,
+                          inferredDate: false,
+                        })
+                      }
+                    />
+                  </Field>
+                  <Field label="Amount · Rs">
+                    <input
+                      aria-label={`Amount, source line ${row.sourceLine}`}
+                      inputMode="decimal"
+                      value={row.amountText}
+                      onChange={(event) =>
+                        update(row.id, { amountText: event.target.value })
+                      }
+                    />
+                  </Field>
+                  <Field label="Category">
+                    <input
+                      aria-label={`Category, source line ${row.sourceLine}`}
+                      value={row.category}
+                      onChange={(event) =>
+                        update(row.id, { category: event.target.value })
+                      }
+                    />
+                  </Field>
+                  <div className="import-note">
+                    <Field label="Note">
                       <input
                         aria-label={`Note, source line ${row.sourceLine}`}
                         value={row.note}
@@ -267,26 +286,13 @@ export function ImportTool({
                           update(row.id, { note: event.target.value })
                         }
                       />
-                    </td>
-                    <td>
-                      <button
-                        className="icon-button"
-                        aria-label={`Remove source line ${row.sourceLine} from preview`}
-                        onClick={() =>
-                          setRows((current) =>
-                            current.filter((item) => item.id !== row.id),
-                          )
-                        }
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </Field>
+                  </div>
+                </div>
+              </article>
+            ))}
           </div>
-          {rows.length > 20 && (
+          {rows.length > 10 && (
             <div className="action-pair">
               <button
                 className="button secondary"
@@ -296,17 +302,29 @@ export function ImportTool({
                 Previous
               </button>
               <span className="muted">
-                {page + 1} / {Math.ceil(rows.length / 20)}
+                {page + 1} / {Math.ceil(rows.length / 10)}
               </span>
               <button
                 className="button secondary"
-                disabled={(page + 1) * 20 >= rows.length}
+                disabled={(page + 1) * 10 >= rows.length}
                 onClick={() => setPage(page + 1)}
               >
                 Next
               </button>
             </div>
           )}
+          <button
+            className="quiet-button"
+            onClick={() =>
+              void downloadFile(
+                "Morrow-import-source.txt",
+                text,
+                "text/plain;charset=utf-8",
+              ).catch((caught) => setError(message(caught)))
+            }
+          >
+            Save original source
+          </button>
           {preview.issues.length > 0 && (
             <details className="confirm-box">
               <summary>
@@ -461,253 +479,6 @@ export function RestoreTool({
           }}
         />
       )}
-    </Sheet>
-  );
-}
-
-export function CloudTool({
-  store,
-  notify,
-  onClose,
-}: {
-  store: Store;
-  notify: Notify;
-  onClose: () => void;
-}) {
-  const [config, setConfig] = useState<GithubConfig>(
-    () =>
-      getGithubConfig() || {
-        owner: "",
-        repo: "",
-        path: "morrow/current.json",
-        token: "",
-      },
-  );
-  const [remote, setRemote] = useState<{
-    backup: string;
-    sha: string;
-    preview: Preview;
-  } | null>(null);
-  const [mode, setMode] = useState<"upload" | "restore" | null>(null);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState("");
-  const [lastBackup, setLastBackup] = useState(() => {
-    try {
-      return localStorage.getItem("morrow.last-backup") || "";
-    } catch {
-      return "";
-    }
-  });
-  const edit = (patch: Partial<GithubConfig>) => {
-    setConfig((current) => ({ ...current, ...patch }));
-    setRemote(null);
-    setMode(null);
-  };
-  const inspect = async () => {
-    setPending(true);
-    setError("");
-    setMode(null);
-    try {
-      saveGithubConfig(config);
-      const downloaded = await downloadBackup(config);
-      setRemote({ ...downloaded, preview: previewBackup(downloaded.backup) });
-      notify("Remote backup verified. Review it before replacing either copy.");
-    } catch (caught) {
-      setRemote(null);
-      setError(message(caught));
-    } finally {
-      setPending(false);
-    }
-  };
-  const upload = async () => {
-    setPending(true);
-    setError("");
-    try {
-      saveGithubConfig(config);
-      const sha = await uploadBackup(
-        config,
-        store.getBackup(),
-        remote?.sha || null,
-      );
-      const stamp = new Date().toISOString();
-      try {
-        localStorage.setItem("morrow.last-backup", stamp);
-      } catch {
-        /* Status only. */
-      }
-      setLastBackup(stamp);
-      setRemote({
-        backup: store.getBackup(),
-        sha,
-        preview: previewBackup(store.getBackup()),
-      });
-      setMode(null);
-      notify("Your verified backup is on GitHub.");
-    } catch (caught) {
-      setError(message(caught));
-    } finally {
-      setPending(false);
-    }
-  };
-  return (
-    <Sheet
-      title="GitHub backup"
-      description="Changes stay on this device until backed up."
-      onClose={onClose}
-      wide
-    >
-      <div className="form-two">
-        <Field label="Repository owner">
-          <input
-            autoComplete="off"
-            value={config.owner}
-            onChange={(event) => edit({ owner: event.target.value })}
-          />
-        </Field>
-        <Field label="Repository name">
-          <input
-            value={config.repo}
-            onChange={(event) => edit({ repo: event.target.value })}
-          />
-        </Field>
-      </div>
-      <Field label="Backup path">
-        <input
-          value={config.path}
-          onChange={(event) => edit({ path: event.target.value })}
-        />
-      </Field>
-      <Field
-        label="GitHub access token"
-        hint="Kept in memory for this session. Use a private repository and a token limited to its contents."
-      >
-        <input
-          type="password"
-          autoComplete="off"
-          value={config.token}
-          onChange={(event) => edit({ token: event.target.value })}
-        />
-      </Field>
-      <p className="period-note">
-        This is a backup and restore workflow. Use one editing device at a time;
-        independent offline devices cannot share a strict spending limit.
-      </p>
-      <p className="muted">
-        {lastBackup
-          ? `Last successful upload from this device: ${new Date(lastBackup).toLocaleString()}`
-          : "No successful upload recorded on this device."}
-      </p>
-      <div className="action-pair">
-        <button
-          className="button secondary"
-          disabled={pending}
-          onClick={() => void inspect()}
-        >
-          <Cloud size={17} />
-          {pending ? "Working…" : "Inspect remote backup"}
-        </button>
-        <button
-          className="button secondary"
-          disabled={pending}
-          onClick={() => {
-            setMode("upload");
-            setError("");
-          }}
-        >
-          Back up this ledger <ArrowUpRight size={17} />
-        </button>
-      </div>
-      <InlineError error={error} />
-      {remote && (
-        <div className="confirm-box">
-          <p className="eyebrow">VERIFIED REMOTE COPY</p>
-          <h3>
-            {remote.preview.state.journal.length} journal records ·{" "}
-            {remote.preview.state.budgets.length} budgets
-          </h3>
-          <p className="muted">
-            Dataset {remote.preview.state.id.slice(0, 8)} · revision{" "}
-            {remote.preview.state.revision}
-          </p>
-          <div className="action-pair">
-            <button
-              className="button secondary"
-              onClick={() =>
-                void downloadFile(
-                  "Morrow-remote-backup.json",
-                  remote.backup,
-                ).catch((caught) => setError(message(caught)))
-              }
-            >
-              Save remote file
-            </button>
-            <button
-              className="button secondary"
-              onClick={() => setMode("restore")}
-            >
-              Review restore
-            </button>
-          </div>
-        </div>
-      )}
-      {mode === "upload" && (
-        <div className="confirm-box">
-          <h3>
-            {remote
-              ? "Replace the reviewed remote copy?"
-              : "Create a new remote backup?"}
-          </h3>
-          <p className="muted">
-            {remote
-              ? "Your current complete ledger will replace the revision you inspected. An intervening remote change stops the upload."
-              : "Existing remote files are never overwritten without first inspecting them. If this path exists, the upload will stop."}
-          </p>
-          <button
-            className="button primary"
-            disabled={pending}
-            onClick={() => void upload()}
-          >
-            {pending ? "Uploading…" : "Confirm backup"}
-            <ArrowUpRight size={17} />
-          </button>
-        </div>
-      )}
-      {mode === "restore" && remote && (
-        <RestorePreview
-          preview={remote.preview}
-          pending={pending}
-          onConfirm={() => {
-            setPending(true);
-            void store
-              .replaceFromBackup(remote.backup)
-              .then(() => {
-                notify(
-                  "Remote backup restored; previous local records preserved.",
-                );
-                onClose();
-              })
-              .catch((caught) => setError(message(caught)))
-              .finally(() => setPending(false));
-          }}
-        />
-      )}
-      <button
-        className="button subtle"
-        onClick={() => {
-          clearGithubConfig();
-          setConfig({
-            owner: "",
-            repo: "",
-            path: "morrow/current.json",
-            token: "",
-          });
-          setRemote(null);
-          setMode(null);
-          notify("Destination disconnected and session token cleared.");
-        }}
-      >
-        Disconnect destination
-      </button>
     </Sheet>
   );
 }

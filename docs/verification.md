@@ -1,4 +1,12 @@
-# Morrow 1.0.0 verification
+# Morrow verification
+
+## 1.2.0 data tools and Savings verification
+
+48 finance/data tests and 24 desktop/phone browser checks pass. New checks cover total Balance vs unallocated Savings, exclusion of historical expenses from Savings history, all file export formats, clipboard copy, CSV editing/removal before import, complete restore, GitHub token entry, branch-aware uploads, exact read-back and conflicting-write protection. Synthetic tokens stay out of browser storage and backups.
+
+The GitHub service was also checked against the real API using the existing Git sign-in for read-only repository access and file read-back on `master`. This repository defaults to `gh-pages`; the optional backup branch makes that distinction explicit. Remote upload/conflict tests use intercepted API responses and synthetic ledgers, not personal backup data.
+
+Android tests cover encrypted token storage, recreation persistence, token removal, clipboard copy, Savings authentication and native ledger recovery. An optional local network test checks the native HTTP bridge against GitHub; CI keeps network dependence out of instrumentation tests.
 
 ## 1.1.0 interface and performance verification
 

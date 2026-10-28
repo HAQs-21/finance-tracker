@@ -11,6 +11,8 @@ public class MainActivity extends BridgeActivity {
         // dark appearance as Morrow, independently of the device's day theme.
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES);
         registerPlugin(SavingsPrivacyPlugin.class);
+        registerPlugin(BackupCredentialsPlugin.class);
+        registerPlugin(MorrowClipboardPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

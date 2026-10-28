@@ -22,7 +22,7 @@ Export Settings → Complete JSON in the browser, then Restore JSON in the Andro
 
 Browser: structured IndexedDB. Android: native SQLite with named record fields. Financial changes commit atomically. Recovery checkpoints precede replacement, reset, and import. Complete JSON includes the journal, category identities, recurring template versions, budgets, and original migration records. CSV and notes are convenience exports; Excel contains formulas and a complete journal.
 
-GitHub backup uses explicit inspect/review, compare-and-swap updates, and read-back verification. A missing file never clears local records. Access tokens remain in memory. Use one active editing device; transfer through verified backups.
+GitHub backup uses a checked connection, explicit review, compare-and-swap updates, and read-back verification. A missing file never clears local records. Android tokens are encrypted with Android Keystore; browser tokens remain in memory. Tokens are excluded from ledger backups. The backup branch is optional and defaults to the repository default. Use one active editing device; transfer through verified backups.
 
 The signing directory .android-tools/signing is deliberately ignored by Git. Preserve it privately to sign future APK updates. It must never be committed.
 

@@ -927,3 +927,31 @@ html[data-motion="always"] .budget-progress > span,
 html[data-motion="always"] .breakdown-meter > span {
   transition: none;
 }
+
+.savings-balances {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 22px;
+  text-align: left;
+}
+.savings-balances > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.savings-balances > div > span:first-child {
+  font-size: 13px;
+  color: var(--muted);
+}
+body .savings-balances .money {
+  font-size: clamp(24px, 4vw, 32px);
+  font-weight: 550;
+  margin: 0;
+}
+.savings-balances small {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.5;
+}
