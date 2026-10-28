@@ -347,7 +347,7 @@ export function AppShell({
               <button onClick={() => setGuide(true)} className="quiet-button">
                 <CircleHelp size={16} /> How budgets work
               </button>
-              <span className="version">Offline · 1.2.0</span>
+              <span className="version">Offline · 1.2.1</span>
             </div>
           </aside>
           <div className="workspace">

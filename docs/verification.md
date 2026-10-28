@@ -1,5 +1,9 @@
 # Morrow verification
 
+## 1.2.1 token-entry regression
+
+Android input capture used a BaseInputConnection and could assign text directly to the active DOM field without dispatching input events. The release now uses normal WebView input. The token field reads its displayed value at submission and is not controlled by stale React state. Four browser checks cover empty-field validation, autofill with no input/change events, visibility toggling, checked connections, uploads and conflict protection. A native test verifies the configured input connection and real Android keyboard entry into the token field. The release build and Android lint pass.
+
 ## 1.2.0 data tools and Savings verification
 
 48 finance/data tests and 24 desktop/phone browser checks pass. New checks cover total Balance vs unallocated Savings, exclusion of historical expenses from Savings history, all file export formats, clipboard copy, CSV editing/removal before import, complete restore, GitHub token entry, branch-aware uploads, exact read-back and conflicting-write protection. Synthetic tokens stay out of browser storage and backups.

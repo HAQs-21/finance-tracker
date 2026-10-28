@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Eye, EyeOff, Cloud, Check, ArrowUpRight } from "lucide-react";
 import {
   downloadBackup,
@@ -46,7 +46,11 @@ export function CloudPanel({
   );
   const [path, setPath] = useState(saved?.path || "morrow/current.json");
   const [branch, setBranch] = useState(saved?.branch || "");
-  const [token, setToken] = useState(saved?.token || "");
+  const tokenField = useRef<HTMLInputElement>(null);
+  const repositoryField = useRef<HTMLInputElement>(null);
+  const pathField = useRef<HTMLInputElement>(null);
+  const branchField = useRef<HTMLInputElement>(null);
+  const tokenEdited = useRef(false);
   const [visible, setVisible] = useState(false);
   const [connected, setConnected] = useState<GithubConfig | null>(null);
   const [remote, setRemote] = useState<Remote | null>(null);
@@ -64,7 +68,14 @@ export function CloudPanel({
     let disposed = false;
     void loadBackupToken()
       .then((value) => {
-        if (!disposed && value) setToken((current) => current || value);
+        if (
+          !disposed &&
+          value &&
+          tokenField.current &&
+          !tokenField.current.value &&
+          !tokenEdited.current
+        )
+          tokenField.current.value = value;
       })
       .catch(() => {
         if (!disposed)
@@ -81,6 +92,14 @@ export function CloudPanel({
     setError("");
   };
   const connect = async () => {
+    // Password managers and some Android IMEs can fill the DOM without a React
+    // change event. Read the displayed values before triggering any rerender.
+    const entered = {
+      repository: repositoryField.current?.value ?? repository,
+      path: pathField.current?.value ?? path,
+      branch: branchField.current?.value ?? branch,
+      token: tokenField.current?.value ?? "",
+    };
     setPending(true);
     setError("");
     setMode(null);
@@ -88,11 +107,13 @@ export function CloudPanel({
     setRemote(null);
     try {
       const config = {
-        ...parseGithubRepository(repository),
-        path: path.trim(),
-        branch: branch.trim(),
-        token: token.trim().replace(/^Bearer\s+/i, ""),
+        ...parseGithubRepository(entered.repository),
+        path: entered.path.trim(),
+        branch: entered.branch.trim(),
+        token: entered.token.trim().replace(/^Bearer\s+/i, ""),
       };
+      if (!config.token)
+        throw new Error("Enter your GitHub access token in the token field.");
       if (/\s/.test(config.token))
         throw new Error(
           "Paste the complete token as one line, without spaces.",
@@ -101,7 +122,7 @@ export function CloudPanel({
       await storeBackupToken(config.token);
       saveGithubConfig(config);
       setRepository(`${config.owner}/${config.repo}`);
-      setToken(config.token);
+      if (tokenField.current) tokenField.current.value = config.token;
       try {
         const downloaded = await downloadBackup(config);
         setRemote({ ...downloaded, preview: previewBackup(downloaded.backup) });
@@ -144,6 +165,7 @@ export function CloudPanel({
     <div className="cloud-panel">
       <Field label="GitHub repository">
         <input
+          ref={repositoryField}
           aria-label="GitHub repository"
           placeholder="owner/repository or GitHub URL"
           autoCapitalize="none"
@@ -151,6 +173,10 @@ export function CloudPanel({
           spellCheck={false}
           value={repository}
           disabled={pending}
+          onInput={(event) => {
+            invalidate();
+            setRepository(event.currentTarget.value);
+          }}
           onChange={(event) => {
             invalidate();
             setRepository(event.target.value);
@@ -160,17 +186,18 @@ export function CloudPanel({
       <Field label="GitHub access token">
         <div className="token-field">
           <input
+            ref={tokenField}
             aria-label="GitHub access token"
             type={visible ? "text" : "password"}
             autoComplete="off"
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
-            value={token}
+            defaultValue={saved?.token || ""}
             disabled={pending}
-            onChange={(event) => {
+            onInput={() => {
+              tokenEdited.current = true;
               invalidate();
-              setToken(event.target.value);
             }}
           />
           <button
@@ -203,8 +230,13 @@ export function CloudPanel({
         <Field label="Backup path">
           <input
             aria-label="Backup path"
+            ref={pathField}
             value={path}
             disabled={pending}
+            onInput={(event) => {
+              invalidate();
+              setPath(event.currentTarget.value);
+            }}
             onChange={(event) => {
               invalidate();
               setPath(event.target.value);
@@ -214,9 +246,14 @@ export function CloudPanel({
         <Field label="Branch · optional">
           <input
             aria-label="Backup branch"
+            ref={branchField}
             value={branch}
             placeholder="Repository default"
             disabled={pending}
+            onInput={(event) => {
+              invalidate();
+              setBranch(event.currentTarget.value);
+            }}
             onChange={(event) => {
               invalidate();
               setBranch(event.target.value);
@@ -226,7 +263,7 @@ export function CloudPanel({
       </details>
       <button
         className="button primary"
-        disabled={pending || !repository.trim() || !token.trim()}
+        disabled={pending}
         onClick={() => void connect()}
       >
         <Cloud size={16} />
@@ -345,7 +382,8 @@ export function CloudPanel({
               .then(() => {
                 clearGithubConfig();
                 setRepository("");
-                setToken("");
+                tokenEdited.current = true;
+                if (tokenField.current) tokenField.current.value = "";
                 setPath("morrow/current.json");
                 setBranch("");
                 invalidate();

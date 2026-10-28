@@ -411,6 +411,59 @@ test("data tools export every format and import editable CSV cards without chang
   await takePreview(page, testInfo, `data-tools-${testInfo.project.name}.png`);
 });
 
+test("GitHub recognizes autofilled credentials without input events and validates empty fields", async ({
+  page,
+}) => {
+  let received = false;
+  await page.route("https://api.github.com/**", async (route) => {
+    received =
+      route.request().headers().authorization ===
+      "Bearer synthetic-autofill-token";
+    const url = new URL(route.request().url());
+    return route.fulfill(
+      url.pathname.includes("/contents/morrow/current.json")
+        ? { status: 404, json: {} }
+        : { json: url.pathname.endsWith("/contents") ? [] : { id: 1 } },
+    );
+  });
+  await openApp(page);
+  await navigate(page, "My space");
+  const tools = page.getByRole("region", {
+    name: "Import and export",
+    exact: true,
+  });
+  await tools.getByRole("tab", { name: "GitHub", exact: true }).click();
+  const save = tools.getByRole("button", {
+    name: "Save connection",
+    exact: true,
+  });
+  await expect(save).toBeEnabled();
+  await save.click();
+  await expect(tools.getByRole("alert")).toContainText("owner/repository");
+  await tools
+    .getByRole("textbox", { name: "GitHub repository", exact: true })
+    .fill("owner/vault");
+  await save.click();
+  await expect(tools.getByRole("alert")).toContainText(
+    "Enter your GitHub access token",
+  );
+  // Reproduce Android capture/autofill: value changes with no input/change event.
+  const token = tools.getByLabel("GitHub access token", { exact: true });
+  await token.evaluate((element) => {
+    (element as HTMLInputElement).value = "synthetic-autofill-token";
+  });
+  await tools.getByRole("button", { name: "Show token", exact: true }).click();
+  await expect(token).toHaveValue("synthetic-autofill-token");
+  await save.click();
+  await expect(
+    tools.getByRole("region", { name: "Connected backup", exact: true }),
+  ).toBeVisible();
+  expect(received).toBe(true);
+  expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain(
+    "synthetic-autofill-token",
+  );
+});
+
 test("GitHub connection saves a token for the session, creates a verified backup, and stops conflicting writes", async ({
   page,
 }) => {

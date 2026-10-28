@@ -151,6 +151,25 @@ public class NativeLedgerTest {
     }
 
     @Test(timeout = 90000)
+    public void githubTokenAcceptsNativeKeyboardInput() throws Exception {
+        assumeTrue("Disposable Android emulator required", Build.HARDWARE.contains("ranchu") || Build.HARDWARE.contains("goldfish"));
+        shell("svc power stayon true"); shell("input keyevent 224"); shell("wm dismiss-keyguard");
+        scenario = ActivityScenario.launch(MainActivity.class);
+        try {
+            waitFor("document.querySelector('.plan-page')"); helpers();
+            scenario.onActivity(activity -> assertFalse("Use normal WebView IME input", activity.getBridge().getConfig().isInputCaptured()));
+            settings(); run("__click('GitHub','[aria-label=\"Data tools\"]')");
+            waitFor("document.querySelector('input[aria-label=\"GitHub access token\"]')");
+            run("__fill('input[aria-label=\"GitHub repository\"]','owner/vault');window.__nativeTokenInput=false;const field=document.querySelector('input[aria-label=\"GitHub access token\"]');field.value='';field.addEventListener('input',()=>window.__nativeTokenInput=true);field.focus()");
+            scenario.onActivity(activity -> activity.getBridge().getWebView().requestFocus());
+            shell("input text synthetic-ime-token");
+            waitFor("document.querySelector('input[aria-label=\"GitHub access token\"]').value==='synthetic-ime-token'");
+            assertEquals("true", evaluate("window.__nativeTokenInput"));
+            assertEquals("false", evaluate("[...document.querySelectorAll('button')].find(button=>button.textContent.trim()==='Save connection').disabled"));
+        } finally { scenario.close(); }
+    }
+
+    @Test(timeout = 90000)
     public void backupTokenIsEncryptedAndSurvivesActivityRecreation() throws Exception {
         assumeTrue("Disposable Android emulator required", Build.HARDWARE.contains("ranchu") || Build.HARDWARE.contains("goldfish"));
         shell("svc power stayon true"); shell("input keyevent 224"); shell("wm dismiss-keyguard");
